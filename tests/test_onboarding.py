@@ -51,14 +51,15 @@ def new_user(tmp_path, monkeypatch):
 
 
 def test_new_user_can_set_up_from_the_dashboard(new_user):
-    at = AppTest.from_file(str(config.ROOT / "dashboard" / "app.py"), default_timeout=90).run()
-    assert not at.exception
-    assert any("Welcome!" in i.value for i in at.info)
-    assert [b.disabled for b in at.button if b.label == "Run scout now"] == [True]
-    # the example files were created for the new user
+    # Overview: setup checklist shown, run buttons disabled
+    app = AppTest.from_file(str(config.ROOT / "dashboard" / "app.py"), default_timeout=90).run()
+    assert not app.exception
+    assert any("get you set up" in m.value for m in app.markdown)
+    assert [b.disabled for b in app.sidebar.button if b.label == "Run scout now"] == [True]
     assert (new_user / "profile.yaml").exists() and (new_user / "preferences.yaml").exists()
 
-    # 1. resume -> profile
+    # 1. My profile: resume -> profile
+    at = AppTest.from_function(_profile_page, default_timeout=90).run()
     at.text_area(key="resume_paste").input(RESUME).run()
     [b for b in at.button if b.label.startswith("Read my resume")][0].click().run()
     assert not at.exception
@@ -68,7 +69,8 @@ def test_new_user_can_set_up_from_the_dashboard(new_user):
     assert prof["experience"][0]["facts"][1].startswith("Cut monthly reporting time")
     assert prof["application"]["first_name"] == "Jane" and prof["work_rights"]["status"] == "citizen"
 
-    # 2. description -> search settings
+    # 2. Job search: description -> search settings
+    at = AppTest.from_function(_search_page, default_timeout=90).run()
     at.text_area(key="looking_for").input("Data analyst jobs in Brisbane, Power BI heavy, no sales.").run()
     [b for b in at.button if b.label.startswith("Suggest search settings")][0].click().run()
     [b for b in at.button if b.label == "Save search settings"][0].click().run()
@@ -79,9 +81,21 @@ def test_new_user_can_set_up_from_the_dashboard(new_user):
     assert prefs["intel"]["topic"] == "health tech"
 
     # only the API key is left
-    at.run()
-    welcome = next(i.value for i in at.info if "Welcome!" in i.value)
-    assert welcome.count("✅") == 2
+    app.run()
+    checklist = " ".join(m.value for m in app.markdown)
+    assert checklist.count(":material/check_circle:") == 2
+
+
+def _profile_page():
+    from jobsearch.ui import profile_tab
+
+    profile_tab.render()
+
+
+def _search_page():
+    from jobsearch.ui import search_tab
+
+    search_tab.render()
 
 
 def test_persona_follows_the_new_users_work_rights(new_user):

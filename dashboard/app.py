@@ -42,7 +42,10 @@ from jobsearch.scout.filters import FRESHNESS_TIERS, freshness_tier  # noqa: E40
 from jobsearch.tailor import gaps  # noqa: E402
 from jobsearch.tailor.facts import load_catalogue  # noqa: E402
 
-st.set_page_config(page_title="Job Search Swarm", layout="wide")
+st.set_page_config(page_title="Job Search Swarm", page_icon=":material/work:", layout="wide")
+from jobsearch.ui import style  # noqa: E402
+
+style.apply()
 prefs = preferences()
 tz = local_tz()
 
@@ -78,64 +81,55 @@ def review(version_id: int, decision: str) -> None:
         s.commit()
 
 
-# ---------- sidebar: budget and runs ----------
-with st.sidebar:
-    st.header("Budget (USD)")
+# ---------- sidebar: budget and runs (shown under the page navigation) ----------
+def sidebar() -> None:
+    style.brand()
     b = prefs["budget"]
     today, month = llm.spend_today(), llm.spend_this_month()
-    # "\$" because Streamlit treats paired $ signs as LaTeX
-    st.metric("Today", f"\\${today:.2f} / \\${b['daily_usd']:.2f}")
-    st.progress(min(today / b["daily_usd"], 1.0) if b["daily_usd"] else 0.0)
-    st.metric("This month", f"\\${month:.2f} / \\${b['monthly_usd']:.2f}")
-    st.progress(min(month / b["monthly_usd"], 1.0) if b["monthly_usd"] else 0.0)
+    with st.sidebar.container(border=True, key="card-budget"):
+        st.markdown("**Budget**")
+        st.caption(f"Today \\${today:.2f} of \\${b['daily_usd']:.2f}")
+        st.progress(min(today / b["daily_usd"], 1.0) if b["daily_usd"] else 0.0)
+        st.caption(f"This month \\${month:.2f} of \\${b['monthly_usd']:.2f}")
+        st.progress(min(month / b["monthly_usd"], 1.0) if b["monthly_usd"] else 0.0)
 
-    st.header("Run")
     ready = all(persona.is_set_up().values())
-    if st.button("Run scout now", width="stretch", disabled=not ready):
+    if st.sidebar.button("Run scout now", icon=":material/travel_explore:", width="stretch", disabled=not ready,
+                         type="primary"):
         from jobsearch.scout.pipeline import run_scout
 
-        with st.spinner("Fetching and scoring..."):
+        with st.spinner("Fetching and scoring jobs..."):
             stats = run_scout()
-        st.success(f"Scored {stats.get('scored', 0)}, shortlisted {stats.get('shortlisted', 0)}")
-    if st.button("Run startup intel now", width="stretch", disabled=not ready):
+        st.sidebar.success(f"Scored {stats.get('scored', 0)}, shortlisted {stats.get('shortlisted', 0)}")
+    if st.sidebar.button("Run startup research", icon=":material/rocket_launch:", width="stretch", disabled=not ready):
         from jobsearch.intel.pipeline import run_intel
 
         with st.spinner("Reading funding news, researching startups..."):
             stats = run_intel()
-        st.success(f"{stats.get('startups.new', 0)} new startups, {stats.get('profiled', 0)} profiled")
+        st.sidebar.success(f"{stats.get('startups.new', 0)} new startups, {stats.get('profiled', 0)} profiled")
     with session() as s:
         last = s.exec(select(RunLog).order_by(RunLog.id.desc()).limit(1)).first()
     if last:
-        st.caption(f"Last run: {local(last.started_at)} {'(error)' if last.error else ''}")
+        st.sidebar.caption(f"Last run {local(last.started_at)}{' · error' if last.error else ''}")
 
-# ---------- first-run checklist ----------
-setup = persona.is_set_up()
-if not all(setup.values()):
-    tick = {True: "✅", False: "⬜"}
-    st.info("\n\n".join([
-        "**Welcome! Three steps before the first run:**",
-        f"{tick[setup['api_key']]} Add your Anthropic API key (**Job search** tab → API keys)",
-        f"{tick[setup['profile']]} Upload your resume and check your profile (**My profile** tab)",
-        f"{tick[setup['preferences']]} Describe the jobs you want (**Job search** tab)",
-        "Then click **Run scout now** in the sidebar.",
-    ]))
 
-(tab_jobs, tab_approvals, tab_applications, tab_startups, tab_outreach, tab_profile, tab_search, tab_spend,
- tab_runs) = st.tabs(["Jobs", "Approvals", "Applications", "Startups", "Outreach", "My profile", "Job search",
-                      "Spend", "Runs"])
-
-with tab_profile:
+def page_profile() -> None:
+    style.header("My profile", "The only source of truth the agents may use.")
     from jobsearch.ui import profile_tab
 
     profile_tab.render()
 
-with tab_search:
+
+def page_search() -> None:
+    style.header("Job search", "What you want, where to look, your budget and API keys.")
     from jobsearch.ui import search_tab
 
     search_tab.render()
 
+
 # ---------- jobs ----------
-with tab_jobs:
+def page_jobs() -> None:
+    style.header('Jobs', 'Every job found, freshest first. Select one for details.')
     with session() as s:
         jobs = s.exec(select(Job)).all()
     if not jobs:
@@ -212,7 +206,7 @@ with tab_jobs:
                 with st.spinner("Tailoring with Opus, verifying, rendering..."), llm.user_initiated():
                     res = run_tailor(job_id=job.id)
                 if res.get("tailored"):
-                    st.success("Done. Review it in the Approvals tab.")
+                    st.success("Done. Review it on the Approvals page.")
                 else:
                     st.error(f"Tailoring didn't complete: {res}")
             if b2.button("Shortlist", width="stretch", disabled=job.status == "shortlisted"):
@@ -228,7 +222,8 @@ with tab_jobs:
                 st.text(job.description or "(none)")
 
 # ---------- approvals ----------
-with tab_approvals:
+def page_approvals() -> None:
+    style.header('Approvals', 'Tailored resumes waiting for you. Nothing is sent without your OK.')
     with session() as s:
         pending = s.exec(select(ResumeVersion).where(ResumeVersion.status == "pending_review")
                          .order_by(ResumeVersion.created_at.desc())).all()
@@ -239,16 +234,14 @@ with tab_approvals:
     with session() as s:
         n_outreach = len(s.exec(select(OutreachDraft.id).where(OutreachDraft.status == "pending_review")).all())
     if n_outreach:
-        st.info(f"{n_outreach} outreach draft(s) are waiting for review in the Outreach tab.")
-    st.caption("Tailored resumes wait here for your approval. Nothing is submitted or sent without it. "
-               "Outreach drafts (phase 4) and pre-filled applications (phase 5) will join this queue.")
+        st.info(f"{n_outreach} outreach draft(s) are waiting for review on the Outreach page.")
     if not pending:
         st.info("Nothing waiting for review.")
     else:
         catalogue = load_catalogue()
     for v in pending:
         job = jobs_by_id[v.job_id]
-        with st.expander(f"**{job.title}** · {job.company} · score {job.fit_score if job.fit_score is not None else '–'} · posted {local(job.posted_at)}",
+        with st.expander(f"**{job.title}** · {job.company} · :primary-badge[{job.fit_score if job.fit_score is not None else '–'}/100] · posted {local(job.posted_at)}",
                          expanded=len(pending) == 1):
             left, right = st.columns([3, 2])
             preview = Path(v.resume_pdf).parent / "preview.png"
@@ -350,15 +343,15 @@ with tab_approvals:
                         elif regen:
                             st.info("Nothing to change: choose where a gap belongs, or pick keywords to mention.")
             c1, c2, c3, c4, c5 = st.columns(5)
-            c1.link_button("Open posting", job.url, width="stretch")
+            c1.link_button("Open posting", job.url, width="stretch", icon=":material/open_in_new:")
             with open(v.resume_pdf, "rb") as f:
                 c2.download_button("Resume PDF", f.read(), file_name=Path(v.resume_pdf).name,
-                                   mime="application/pdf", key=f"r{v.id}", width="stretch")
+                                   mime="application/pdf", key=f"r{v.id}", width="stretch", icon=":material/download:")
             if v.cover_letter_pdf and Path(v.cover_letter_pdf).exists():
                 with open(v.cover_letter_pdf, "rb") as f:
                     c3.download_button("Cover letter PDF", f.read(), file_name=Path(v.cover_letter_pdf).name,
-                                       mime="application/pdf", key=f"c{v.id}", width="stretch")
-            if c4.button("Approve", key=f"a{v.id}", type="primary", width="stretch"):
+                                       mime="application/pdf", key=f"c{v.id}", width="stretch", icon=":material/download:")
+            if c4.button("Approve", key=f"a{v.id}", type="primary", width="stretch", icon=":material/check_circle:"):
                 review(v.id, "approve")
                 from jobsearch.apply.pipeline import prepare
 
@@ -368,7 +361,7 @@ with tab_approvals:
                     except Exception as e:  # the resume stays approved; prepare again from the list below
                         st.error(md(f"Couldn't prepare the application: {e}"))
                 st.rerun()
-            if c5.button("Regenerate (~$0.18)", key=f"g{v.id}", width="stretch"):
+            if c5.button("Regenerate", key=f"g{v.id}", width="stretch", icon=":material/refresh:", help="Re-tailor now (~$0.15)"):
                 # Regenerate now rather than queueing for the next scheduled run. The new version replaces
                 # this one only once it succeeds, so a failure (e.g. budget) leaves this card in place.
                 from jobsearch.tailor.pipeline import run_tailor
@@ -378,7 +371,7 @@ with tab_approvals:
                 if res.get("tailored"):
                     st.rerun()
                 st.error(md(f"Regeneration didn't complete: {res}. This version is unchanged."))
-            if st.button("Reject and skip this job", key=f"x{v.id}"):
+            if st.button("Reject and skip this job", key=f"x{v.id}", icon=":material/close:", type="tertiary"):
                 review(v.id, "reject")
                 st.rerun()
 
@@ -410,7 +403,7 @@ with tab_approvals:
             with session() as s:
                 has_app = s.exec(select(Application.id).where(Application.resume_version_id == v.id)).first()
             if has_app:
-                c2.caption("See the Applications tab")
+                c2.caption("See Applications")
             elif c2.button("Prepare application", key=f"pa{v.id}", width="stretch"):
                 from jobsearch.apply.pipeline import prepare
 
@@ -441,7 +434,8 @@ def answer_widget(f: dict, key: str):
     return st.text_input(label, ans, key=key, help=help_text)
 
 
-with tab_applications:
+def page_applications() -> None:
+    style.header('Applications', 'Drafted answers and pre-filled forms. You always click Submit.')
     from jobsearch.apply import pipeline as apply_pipeline
 
     with session() as s:
@@ -453,16 +447,17 @@ with tab_applications:
     st.caption("The agent reads each application form, drafts every answer from your profile, and fills the form "
                "for you. You always click Submit yourself. Approving a resume prepares its application here.")
     if not apps:
-        st.info("No applications yet. Approve a tailored resume in the Approvals tab to prepare one.")
+        st.info("No applications yet. Approve a tailored resume on the Approvals page to prepare one.")
     show_done = st.toggle("Show applied", value=False, key="apps_show_done")
     for a in apps:
         if a.status == "applied" and not show_done:
             continue
         job, ver = app_jobs[a.job_id], app_versions.get(a.resume_version_id)
         blockers = apply_pipeline.blocking_fields(a.fields)
-        with st.container(border=True):
+        with style.card(f"app-{a.id}"):
             how = f"pre-fill via {ATS_NAMES.get(a.ats, a.ats)}" if a.mode == "prefill" else "guided (you apply on their site)"
-            st.markdown(md(f"**{job.title}** · {job.company} · {how} · status: `{a.status}`"))
+            st.markdown(md(f"#### {job.title} · {job.company}"))
+            st.markdown(f"{style.badge(a.status)} :gray-badge[{how}]")
             if a.status == "applied":
                 st.success(f"Applied {local(a.submitted_at)}.")
                 continue
@@ -490,17 +485,17 @@ with tab_applications:
                     st.rerun()
 
             b1, b2, b3, b4 = st.columns(4)
-            b1.link_button("Open application page", a.apply_url or job.url, width="stretch")
+            b1.link_button("Application page", a.apply_url or job.url, width="stretch", icon=":material/open_in_new:")
             if ver:
                 with open(ver.resume_pdf, "rb") as fh:
                     b2.download_button("Resume PDF", fh.read(), file_name=Path(ver.resume_pdf).name,
                                        mime="application/pdf", key=f"ar{a.id}", width="stretch")
             if a.mode == "prefill":
-                if b3.button("Preview fill (no submit)", key=f"ap{a.id}", width="stretch"):
+                if b3.button("Preview fill", key=f"ap{a.id}", width="stretch", icon=":material/preview:", help="Fills the form in a hidden browser and screenshots it. Never submits."):
                     with st.spinner("Filling the form in a hidden browser and taking a screenshot..."):
                         res = apply_pipeline.run_preview(a.id)
                     st.rerun()
-                if b4.button("Open pre-filled in browser", key=f"ao{a.id}", width="stretch", type="primary",
+                if b4.button("Open pre-filled", key=f"ao{a.id}", width="stretch", type="primary", icon=":material/open_in_browser:",
                              disabled=bool(blockers), help="Fills the real form in a visible window. You check it "
                              "and click Submit yourself, then close the window."):
                     with st.spinner("A browser window is open with the form filled in. Review it, click Submit there, then close the window."):
@@ -510,7 +505,7 @@ with tab_applications:
                     st.info(res.note)
             else:
                 b3.caption("Copy the answers below into the employer's form.")
-            if st.button("Mark applied", key=f"am{a.id}"):
+            if st.button("Mark applied", key=f"am{a.id}", icon=":material/done_all:"):
                 apply_pipeline.mark_applied(a.id)
                 st.rerun()
 
@@ -542,11 +537,12 @@ def set_startup_status(startup_id: int, status: str) -> None:
         s.commit()
 
 
-with tab_startups:
+def page_startups() -> None:
+    style.header('Startups', 'Newly funded startups in your field, researched for you.')
     with session() as s:
         startups = s.exec(select(Startup)).all()
     if not startups:
-        st.info("No startups yet. Run startup intel from the sidebar (it also runs daily at 06:00).")
+        st.info("No startups yet. Click Run startup research in the sidebar (it also runs daily at 06:00).")
     else:
         today_local = datetime.now(tz).date()
         srows = [{
@@ -624,7 +620,7 @@ with tab_startups:
                     set_startup_status(x.id, "shortlisted")
                 with st.spinner("Finding people and drafting messages..."), llm.user_initiated():
                     res = run_outreach(startup_id=x.id)
-                st.success("Drafted. See the Outreach tab.") if res.get("planned") else st.error(f"Didn't complete: {res}")
+                st.success("Drafted. See the Outreach page.") if res.get("planned") else st.error(f"Didn't complete: {res}")
             if d2.button("Shortlist for outreach", width="stretch", disabled=x.status == "shortlisted"):
                 set_startup_status(x.id, "shortlisted")
                 st.rerun()
@@ -647,7 +643,8 @@ def gmail_compose_url(to: str, subject: str, body: str) -> str:
     return f"https://mail.google.com/mail/?{q}"
 
 
-with tab_outreach:
+def page_outreach() -> None:
+    style.header('Outreach', 'Messages drafted for you to send yourself.')
     from jobsearch.outreach.pipeline import mark_follow_up_sent, mark_sent, set_draft_status
 
     with session() as s:
@@ -663,7 +660,7 @@ with tab_outreach:
     if due:
         st.warning(f"{len(due)} follow-up(s) due")
         for d in due:
-            with st.container(border=True):
+            with style.card(f"followup-{d.id}"):
                 st.markdown(f"**{d.name or d.role}** at {names.get(d.startup_id)} · sent {local(d.sent_at)}")
                 st.code(d.messages.get("follow_up", ""), language=None, wrap_lines=True)
                 if st.button("Follow-up sent", key=f"fu{d.id}"):
@@ -671,7 +668,7 @@ with tab_outreach:
                     st.rerun()
 
     if not drafts:
-        st.info("No outreach drafts yet. Shortlist a startup in the Startups tab, then click "
+        st.info("No outreach drafts yet. Shortlist a startup on the Startups page, then click "
                 "'Draft outreach' there (shortlisted startups are also drafted after each daily intel run).")
     else:
         statuses = ["pending_review", "approved", "sent", "replied", "skipped"]
@@ -686,9 +683,9 @@ with tab_outreach:
                              f"drafted {local(plan.created_at)} · ${plan.cost_usd:.3f}", expanded=True):
                 st.markdown(f"**Strategy.** {md(plan.strategy)}")
                 for d in by_plan[plan_id]:
-                    with st.container(border=True):
+                    with style.card(f"draft-{d.id}"):
                         who = d.name or f"{d.role} (find on LinkedIn)"
-                        st.markdown(f"**#{d.priority} · {who}** · {d.role if d.name else ''} · _{d.source}_ · status: `{d.status}`")
+                        st.markdown(f"**#{d.priority} · {who}** · {d.role if d.name else ''} · _{d.source}_ {style.badge(d.status)}")
                         st.caption(md(d.why))
                         if d.email:
                             st.caption(f"Email: {d.email} ({d.email_confidence})")
@@ -702,9 +699,9 @@ with tab_outreach:
                         t3.code(f"Subject: {m.get('email_subject', '')}\n\n{m.get('email_body', '')}", language=None, wrap_lines=True)
                         t4.code(m.get("follow_up", ""), language=None, wrap_lines=True)
                         c1, c2, c3, c4, c5 = st.columns(5)
-                        c1.link_button("Find on LinkedIn", d.linkedin_search, width="stretch")
+                        c1.link_button("Find on LinkedIn", d.linkedin_search, width="stretch", icon=":material/person_search:")
                         if d.email:
-                            c2.link_button("Open Gmail draft", gmail_compose_url(d.email, m.get("email_subject", ""),
+                            c2.link_button("Gmail draft", icon=":material/mail:", url=gmail_compose_url(d.email, m.get("email_subject", ""),
                                                                                  m.get("email_body", "")), width="stretch")
                         if d.status == "pending_review" and c3.button("Approve", key=f"oa{d.id}", type="primary", width="stretch"):
                             set_draft_status(d.id, "approved")
@@ -721,7 +718,8 @@ with tab_outreach:
 
 
 # ---------- spend ----------
-with tab_spend:
+def page_spend() -> None:
+    style.header('Spend', 'What each agent has cost over the last 30 days.')
     since = datetime.now(timezone.utc) - timedelta(days=30)
     with session() as s:
         usage = s.exec(select(LlmUsage).where(LlmUsage.ts >= since)).all()
@@ -740,7 +738,8 @@ with tab_spend:
         )
 
 # ---------- runs ----------
-with tab_runs:
+def page_runs() -> None:
+    style.header('Run history', 'Every scheduled and manual run, with its results.')
     with session() as s:
         runs = s.exec(select(RunLog).order_by(RunLog.id.desc()).limit(30)).all()
     for r in runs:
@@ -749,3 +748,32 @@ with tab_runs:
             if r.error:
                 st.error(r.error)
             st.json(r.stats)
+
+
+# ---------- navigation ----------
+def page_overview() -> None:
+    from jobsearch.ui import overview
+
+    overview.render(PAGES)
+
+
+PAGES = {
+    "overview": st.Page(page_overview, title="Overview", icon=":material/space_dashboard:", default=True),
+    "jobs": st.Page(page_jobs, url_path="jobs", title="Jobs", icon=":material/work:"),
+    "approvals": st.Page(page_approvals, url_path="approvals", title="Approvals", icon=":material/fact_check:"),
+    "applications": st.Page(page_applications, url_path="applications", title="Applications", icon=":material/send:"),
+    "startups": st.Page(page_startups, url_path="startups", title="Startups", icon=":material/rocket_launch:"),
+    "outreach": st.Page(page_outreach, url_path="outreach", title="Outreach", icon=":material/forum:"),
+    "profile": st.Page(page_profile, url_path="profile", title="My profile", icon=":material/person:"),
+    "search": st.Page(page_search, url_path="search", title="Job search", icon=":material/tune:"),
+    "spend": st.Page(page_spend, url_path="spend", title="Spend", icon=":material/payments:"),
+    "runs": st.Page(page_runs, url_path="runs", title="Run history", icon=":material/history:"),
+}
+nav = st.navigation({
+    "": [PAGES["overview"]],
+    "Pipeline": [PAGES["jobs"], PAGES["approvals"], PAGES["applications"]],
+    "Startups": [PAGES["startups"], PAGES["outreach"]],
+    "Settings": [PAGES["profile"], PAGES["search"], PAGES["spend"], PAGES["runs"]],
+})
+sidebar()
+nav.run()

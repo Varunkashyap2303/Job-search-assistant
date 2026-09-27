@@ -1,0 +1,33 @@
+# Dashboard look and feel: always-dark, neon-accented. The glass cards, glows, grid backdrop and
+# gradient headings are CSS in jobsearch/ui/style.py. Picked up because `python -m jobsearch dashboard`
+# runs from the project root; restart the dashboard after editing this file.
+
+[client]
+toolbarMode = "minimal"          # hide Streamlit's developer menu and Deploy button
+
+[theme]
+base = "dark"
+primaryColor = "#22D3EE"         # electric cyan
+backgroundColor = "#05070D"      # near-black
+secondaryBackgroundColor = "#0C1322"
+textColor = "#E6EDF7"
+borderColor = "#1B2A45"
+linkColor = "#67E8F9"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
+headingFont = "'Space Grotesk':https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap, sans-serif"
+headingFontWeights = [700, 600, 600, 600, 600, 600]
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap, monospace"
+baseRadius = "0.7rem"
+showWidgetBorder = true
+showSidebarBorder = true
+chartCategoricalColors = ["#22D3EE", "#A78BFA", "#34D399", "#F472B6", "#FBBF24", "#60A5FA"]
+blueColor = "#38BDF8"
+violetColor = "#A78BFA"
+greenColor = "#34D399"
+orangeColor = "#FBBF24"
+redColor = "#F87171"
+grayColor = "#64748B"
+
+[theme.sidebar]
+backgroundColor = "#03050A"
+secondaryBackgroundColor = "#0A1020"

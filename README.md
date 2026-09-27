@@ -23,7 +23,7 @@ without you.** You approve every resume, send every message and click every Subm
 3. [Installation](#installation)
 4. [First-run setup](#first-run-setup)
 5. [Day-to-day use](#day-to-day-use)
-6. [The dashboard, tab by tab](#the-dashboard-tab-by-tab)
+6. [The dashboard, page by page](#the-dashboard-page-by-page)
 7. [How each agent works](#how-each-agent-works)
 8. [Costs and the budget](#costs-and-the-budget)
 9. [Configuration reference](#configuration-reference)
@@ -139,8 +139,8 @@ opening a browser tab.
 
 ## First-run setup
 
-On a new install the dashboard shows a three-step checklist, and the **Run** buttons stay disabled until
-it's complete.
+On a new install the Overview page shows a three-step checklist (each step has an **Open** button), and the
+**Run** buttons stay disabled until it's complete.
 
 ### 1. Add your API key
 
@@ -197,13 +197,20 @@ With scheduling on, a typical day looks like this:
 
 ---
 
-## The dashboard, tab by tab
+## The dashboard, page by page
 
-The sidebar shows today's and this month's spend against your caps, plus **Run scout now** and **Run
-startup intel now**.
+Pages are grouped in the sidebar under **Pipeline** (Jobs, Approvals, Applications), **Startups** (Startups,
+Outreach) and **Settings** (My profile, Job search, Spend, Run history). Under the navigation, the sidebar
+shows today's and this month's spend against your caps, with **Run scout now** and **Run startup research**
+buttons. The look is always dark and futuristic: a near-black grid backdrop with cyan and violet glows,
+glass panels with neon edges, gradient headings, and Space Grotesk / Inter / JetBrains Mono type. The
+Overview also shows a system-status strip (when each agent last ran, budget used, jobs tracked). Colours
+and fonts are in `.streamlit/config.toml` (restart the dashboard after editing it); the glass, glow and
+grid effects are CSS in `jobsearch/ui/style.py`.
 
-| Tab | What it's for |
+| Page | What it's for |
 |-|-|
+| **Overview** | The home page. A greeting; cards for new jobs (with a 7-day chart), resumes to review, open applications, applications sent and today's spend (with a 7-day chart); a **Next up** list that jumps to whatever needs you; the best new matches and the newest funded startups. On a new install it also shows the setup checklist. |
 | **Jobs** | Every job found, sorted by freshness then fit score. Filter by status, freshness tier (A: under 24h, B: 1–7 days, C: 7–30 days), minimum score and city. Select a job for the scorer's summary, matched strengths, gaps, required skills and keywords, and buttons to shortlist, dismiss, re-score or tailor now. |
 | **Approvals** | Each tailored resume with a page preview, why it was tailored that way, keyword coverage, what the fact checker changed (with the original wording), what the humanizer changed, the cover letter and the cost. Buttons: download PDFs, **Approve** (also prepares the application), **Regenerate** (re-tailors immediately), **Reject**. **Close the gaps** turns the job's gaps into profile facts you confirm, then regenerates. Also lists shortlisted jobs waiting to be tailored (**Tailor now**) and approved ones. |
 | **Applications** | One card per prepared application: every form question and drafted answer, editable, with *Needs you* questions first. **Preview fill** screenshots the real form filled in (never submitted); **Open pre-filled in browser** gives you a visible window to check and submit; **Mark applied** records it. Guided applications show a copy-paste kit. |
@@ -212,7 +219,7 @@ startup intel now**.
 | **My profile** | Resume import and the full profile editor (see [First-run setup](#2-build-your-profile)). |
 | **Job search** | Search settings from a plain-English description, the company watchlist, budget caps and API keys. |
 | **Spend** | Daily cost by agent over the last 30 days, and totals per agent and model (calls, tokens, cost). |
-| **Runs** | Every scout, tailor, intel and outreach run with its statistics and any error. |
+| **Run history** | Every scout, tailor, intel and outreach run with its statistics and any error. |
 
 ---
 
