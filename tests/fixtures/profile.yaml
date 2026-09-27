@@ -1,0 +1,99 @@
+# Fictional test persona. Tests never read the real user's config/profile.yaml.
+identity:
+  name: Alex Sample
+  headline: AI Engineer | LLM Applications
+  email: alex@example.com
+  phone: "0400 000 000"
+  location: Melbourne, VIC
+  linkedin: https://www.linkedin.com/in/alex-sample/
+  github: TODO
+  portfolio: TODO
+
+work_rights:
+  status: citizen
+  can_hold_clearance: true
+  resume_line: Full Australian work rights
+
+summary: >
+  AI Engineer building LLM products end to end with FastAPI, React and RAG, deployed on AWS.
+  Built an intent-routing assistant that lifted answer accuracy on inventory questions from 70% to 90%.
+
+skills:
+  backend_frontend: [Python (advanced), FastAPI, REST API design, React, TypeScript]
+  llm_agentic: [Anthropic Claude, LangChain, RAG, tool calling, intent routing, RAGAS evaluation]
+  data_retrieval: [Qdrant, ChromaDB, Neo4j (GraphRAG), PostgreSQL, cross-encoder reranking]
+  cloud_devops: [AWS ECS, AWS Lambda, AWS S3, Docker, CI/CD (GitHub Actions)]
+
+experience:
+  - id: acme
+    title: AI Engineer
+    company: Acme Logistics
+    location: Melbourne, VIC
+    start: 2025-03
+    end: present
+    project: Inventory Assistant
+    stack: [Python, FastAPI, React, Qdrant, PostgreSQL]
+    facts:
+      - Building a conversational assistant for querying warehouse inventory data in plain language, with a FastAPI backend and React front end.
+      - Designed an intent-routing layer that sends each query to Qdrant semantic search, a live REST API or a PostgreSQL data layer.
+      - Raised answer accuracy on inventory questions from 70% (before the routing layer) to 90%.
+      - Expanded the assistant beyond inventory lookups by adding more sources of truth.
+      - Ships through a branch-based release process with QA review before promotion to main.
+  - id: oldjob
+    title: QA Engineer
+    company: Old Co
+    start: TODO
+    facts: []
+
+projects:
+  - id: atlas
+    name: Atlas - Study Planner
+    award: Best Project of the Semester
+    dates: 2024-07 to 2024-11
+    stack: [Next.js, Python, LangChain, AWS ECS, AWS Lambda, AWS S3, Docker]
+    facts:
+      - Shipped a planner-executor multi-agent system that turns course PDFs into study plans, cutting planning time from hours to under 2 minutes.
+      - Owned all AI engineering and backend development in a team of 5.
+      - Built Dockerised Python agent services on AWS ECS, with Lambda and S3.
+      - Added a signal engine that adapts content when a learner is overloaded.
+      - Won Best Project of the Semester.
+  - id: beacon
+    name: Beacon - Voice Agent
+    dates: 2025 to present
+    stack: [Python, FastAPI, Claude (Anthropic), Twilio, Deepgram]
+    facts:
+      - Built solo; a voice agent that matches callers to local support services and texts them the details.
+      - Twilio telephony, Deepgram streaming STT and Claude tool calling over 40+ services within one conversation turn.
+  - id: ragbench
+    name: Hybrid GraphRAG Agent
+    dates: "2025"
+    stack: [Claude, ChromaDB, Neo4j]
+    facts:
+      - Hybrid Graph + Vector RAG agent with cross-encoder reranking and query expansion.
+      - Benchmarked against pure vector search on a 30-question RAGAS suite.
+
+education:
+  - degree: Master of Artificial Intelligence
+    institution: Example University
+    location: Melbourne, VIC
+    dates: 2023-02 to 2024-12
+
+certifications: []
+awards: [Atlas - Best Project of the Semester]
+
+application:
+  first_name: Alex
+  last_name: Sample
+  phone_international: "+61 400 000 000"
+  country: Australia
+  city: Melbourne
+  location: Melbourne, VIC, Australia
+  current_company: Acme Logistics
+  current_title: AI Engineer
+  salary_expectation: TODO
+  notice_period: TODO
+  earliest_start: TODO
+  willing_to_relocate: Yes, anywhere in Australia
+  pronouns: ""
+  how_did_you_hear: Company careers page
+  eeo_default: decline

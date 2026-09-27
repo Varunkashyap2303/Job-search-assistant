@@ -1,0 +1,94 @@
+# Search preferences and system limits (template). On first run this is copied to config/preferences.yaml,
+# which stays on your machine. The easiest way to fill in `search` is the dashboard's Job search tab:
+# describe the jobs you want and it proposes these settings for you to review.
+
+search:
+  looking_for: ""          # what you're looking for, in your own words (the scorer reads this)
+  target_roles: []
+  avoid_roles: ""
+  queries: []              # phrases sent to job-search APIs (Adzuna, Jooble)
+  # A job title must match one of these (keywords or regex, case-insensitive)...
+  title_include: []
+  # ...at companies marked ai_native/any_role in the watchlist, any title matching this qualifies
+  ai_native_title_include:
+    - 'engineer|developer|architect|analyst|manager|designer|specialist'
+  # ...and must not match any of these
+  title_exclude:
+    - 'intern(ship)?\b'
+  locations:
+    preferred: []
+    acceptable: [Melbourne, Sydney, Brisbane, Perth, Adelaide, Canberra, Hobart, Darwin, Gold Coast, Geelong, Newcastle, Wollongong]
+    allow_remote_au: true
+  max_age_days: 30
+
+work_rights:
+  # Hard exclusions are derived from the work rights in your profile (e.g. security-clearance roles are
+  # dropped for visa holders). Set hard_exclude_patterns here only to override that.
+  review_patterns:
+    - 'australian citizen'
+    - 'permanent resident'
+    - '\bcitizenship\b'
+
+scoring:
+  model: claude-sonnet-5
+  max_scores_per_run: 60      # hard cap on LLM scoring calls per scout run
+  shortlist_threshold: 70     # fit_score at/above this is shortlisted for resume tailoring
+
+tailoring:
+  auto_after_scout: true   # tailor newly shortlisted jobs at the end of each scout run
+  max_per_run: 3
+  max_per_day: 4           # Opus tailoring is the most expensive step (~$0.10-0.20 per job)
+  effort: medium
+  humanize: true           # humanizer pass (humanize-writing skill) after the fact check
+  humanizer_effort: medium
+
+intel:
+  topic: AI                  # research focus for the funded-startups list
+  topic_keywords:            # regexes; a funding article must mention one (round-ups always pass)
+    - '\bai\b'
+    - 'artificial intelligence'
+    - 'machine learning'
+    - '\bllms?\b'
+    - 'gen(erative)? ?ai'
+    - 'agentic'
+  lookback_days: 45
+  max_profiles_per_day: 3
+  effort: medium
+  feeds:
+    - {name: Startup Daily, url: "https://www.startupdaily.net/feed/"}
+    - {name: SmartCompany, url: "https://www.smartcompany.com.au/feed/"}
+    - {name: StartupSmart, url: "https://www.smartcompany.com.au/startupsmart/feed/"}
+    - {name: Crunchbase News, url: "https://news.crunchbase.com/feed/", au_source: false}
+  google_news_queries:
+    - '(raises OR raised OR funding OR seed OR "Series A" OR "Series B") AI startup Australia when:7d'
+    - '(Melbourne OR Sydney OR Brisbane) AI startup (raises OR funding OR "pre-seed") when:7d'
+
+outreach:
+  max_startups_per_day: 2       # Opus drafting (~$0.08-0.15 per startup)
+  max_contacts_per_startup: 3
+  max_role_targets: 2           # roles to look up on LinkedIn when no named person fits
+  connection_note_chars: 200    # LinkedIn's limit for free accounts; 300 with Premium
+  follow_up_days: 7
+  effort: medium
+
+# Hard spend caps in USD, enforced before every LLM call. Runs stop cleanly when hit.
+budget:
+  daily_usd: 1.50
+  monthly_usd: 40.00
+  # Each agent's share of the daily cap, so one agent can't starve the others.
+  # Checked against worst-case cost (max_tokens at full price) before every call.
+  per_agent_daily:
+    scout: 0.30    # Sonnet job scoring, about $0.01 per job
+    tailor: 0.60   # Opus tailoring + Sonnet fact check, about $0.10-0.20 per resume
+    intel: 0.40    # startup research (measured: ~$0.35 for a run with 3 profiles)
+    outreach: 0.20 # contact discovery + Opus message drafting
+
+models:
+  tailoring: claude-opus-5
+  research: claude-opus-5
+  outreach: claude-opus-5
+  verification: claude-sonnet-5
+  humanizer: claude-sonnet-5   # switch to claude-opus-5 for a stronger (pricier) edit
+  default: claude-sonnet-5
+
+timezone: Australia/Melbourne

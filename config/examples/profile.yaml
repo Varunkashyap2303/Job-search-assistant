@@ -1,0 +1,63 @@
+# MASTER PROFILE (template). On first run this is copied to config/profile.yaml, which stays on your
+# machine. Fill it in from the dashboard (My profile tab: upload your resume, then edit), or by hand.
+# Agents may only use facts written here. Values that are exactly "TODO" are hidden from agents.
+
+identity:
+  name: ""
+  headline: ""        # e.g. "Data Analyst | SQL, Python, Power BI"
+  email: ""
+  phone: ""
+  location: ""        # e.g. "Brisbane, QLD"
+  linkedin: ""
+  github: ""
+  portfolio: ""
+
+work_rights:
+  status: citizen     # citizen | permanent_resident | visa
+  visa: ""            # e.g. "Subclass 482 (Skills in Demand)"; only for status: visa
+  visa_expiry: ""
+  full_work_rights: true
+  requires_sponsorship_now: false
+  wants_sponsorship_later: false
+  can_hold_clearance: true
+  resume_line: Full Australian work rights
+  notes: ""
+
+summary: ""
+
+skills: {}            # group name -> list of skills, e.g. {analytics: [SQL, Python, Power BI]}
+
+experience: []
+# - id: acme                      # short unique id; facts are cited as acme.1, acme.2, ...
+#   title: Data Analyst
+#   company: Acme
+#   location: Brisbane, QLD
+#   start: 2023-02
+#   end: present
+#   project: ""                   # optional subtitle
+#   stack: [SQL, Power BI]
+#   facts:
+#     - Built the weekly revenue dashboard used by 40 sales staff.
+
+projects: []
+education: []
+# - {degree: Bachelor of Commerce, institution: UQ, location: Brisbane, QLD, dates: 2019-02 to 2022-11}
+certifications: []
+awards: []
+
+application:
+  first_name: ""
+  last_name: ""
+  phone_international: ""
+  country: Australia
+  city: ""
+  location: ""
+  current_company: ""
+  current_title: ""
+  salary_expectation: TODO
+  notice_period: TODO
+  earliest_start: TODO
+  willing_to_relocate: TODO
+  pronouns: ""
+  how_did_you_hear: Company careers page
+  eeo_default: decline

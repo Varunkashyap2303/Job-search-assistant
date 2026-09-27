@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+# Your database, resumes, reports and logs
+data/
+.pytest_cache/
+
+# Your personal configuration stays on your machine; the repo ships templates in config/examples/
+config/*.yaml
+.claude/

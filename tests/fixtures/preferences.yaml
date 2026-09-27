@@ -1,0 +1,118 @@
+# Test preferences (an AI-engineer search). Tests never read the real config/preferences.yaml.
+# Search preferences and system limits. Edit freely; every run re-reads this file.
+
+search:
+  # Queries sent to keyword job APIs (Adzuna, Jooble)
+  queries:
+    - AI Engineer
+    - AI Solutions Architect
+    - Forward Deployed Engineer
+    - LLM Engineer
+    - Generative AI Engineer
+    - Applied AI Engineer
+    - AI Developer
+  # Fed to the scorer so it ranks role types the way you want
+  target_roles: [AI Engineer, AI Solutions Architect, Forward Deployed Engineer, LLM / GenAI Engineer, Applied AI Engineer]
+  avoid_roles: Classical ML / data science roles (tabular modelling, forecasting, analytics, BI); pure research roles
+  # A title must match one of these (case-insensitive regex) to be kept...
+  title_include:
+    - '\bai\b'
+    - '\ba\.i\.'
+    - '\bml\b'
+    - 'machine learning'
+    - '\bllm'
+    - 'gen ?ai|generative'
+    - '\bnlp\b|natural language'
+    - 'deep learning'
+    - 'applied scien'
+    - 'forward[- ]deployed'
+    - 'mlops'
+    - 'computer vision'
+    - '\bagent(ic|s)?\b.*engineer|engineer.*\bagent'
+    - '\brag\b'
+  # ...but at AI-native companies (watchlist ai_native: true) any engineering title qualifies
+  ai_native_title_include:
+    - 'engineer|developer|architect'
+  # ...and must not match any of these
+  title_exclude:
+    - 'principal|staff|distinguished'
+    - 'director|head of|\bvp\b|vice president|chief'
+    - 'manager'
+    - 'intern(ship)?\b'
+    - 'sales|account executive|recruit|marketing|legal|counsel|finance|accountant'
+    - 'pitch us a role|expression of interest'
+  locations:
+    preferred: [Melbourne, Sydney]
+    acceptable: [Brisbane, Perth, Adelaide, Canberra, Hobart, Darwin, Gold Coast, Geelong, Newcastle, Wollongong]
+    allow_remote_au: true
+  max_age_days: 30
+
+work_rights:
+  # Postings matching these are dropped before any LLM call (you can't hold these clearances on a 485)
+  hard_exclude_patterns:
+    - '\bNV1\b|\bNV2\b|\bPV\b clearance'
+    - 'baseline (security )?clearance'
+    - 'security clearance'
+    - '\bAGSVA\b'
+  # Postings matching these are kept but checked closely by the scorer
+  review_patterns:
+    - 'australian citizen'
+    - 'permanent resident'
+    - '\bcitizenship\b'
+
+scoring:
+  model: claude-sonnet-5
+  max_scores_per_run: 60      # hard cap on LLM scoring calls per scout run
+  shortlist_threshold: 70     # fit_score at/above this is shortlisted for resume tailoring
+
+tailoring:
+  auto_after_scout: true   # tailor newly shortlisted jobs at the end of each scout run
+  max_per_run: 3
+  max_per_day: 4           # Opus tailoring is the most expensive step (~$0.10-0.20 per job)
+  effort: medium
+  humanize: true           # humanizer pass (humanize-writing skill) after the fact check
+  humanizer_effort: medium
+
+intel:
+  lookback_days: 45          # ignore funding news older than this
+  max_profiles_per_day: 3    # Opus deep profiles (~$0.08-0.12 each); the rest queue for later days
+  effort: medium
+  feeds:
+    - {name: Startup Daily, url: "https://www.startupdaily.net/feed/"}
+    - {name: SmartCompany, url: "https://www.smartcompany.com.au/feed/"}
+    - {name: StartupSmart, url: "https://www.smartcompany.com.au/startupsmart/feed/"}
+    - {name: Crunchbase News, url: "https://news.crunchbase.com/feed/", au_source: false}
+  google_news_queries:
+    - '(raises OR raised OR funding OR seed OR "Series A" OR "Series B") AI startup Australia when:7d'
+    - '(Melbourne OR Sydney OR Brisbane) AI startup (raises OR funding OR "pre-seed") when:7d'
+    - 'Australian (agentic OR "generative AI" OR LLM) startup funding round when:14d'
+
+outreach:
+  max_startups_per_day: 2       # Opus drafting (~$0.08-0.15 per startup)
+  max_contacts_per_startup: 3
+  max_role_targets: 2           # roles to look up on LinkedIn when no named person fits
+  connection_note_chars: 200    # LinkedIn's limit for free accounts; 300 with Premium
+  follow_up_days: 7
+  effort: medium
+
+# Hard spend caps in USD, enforced before every LLM call. Runs stop cleanly when hit.
+budget:
+  daily_usd: 1.50
+  monthly_usd: 40.00
+  # Each agent's share of the daily cap, so one agent can't starve the others.
+  # Checked against worst-case cost (max_tokens at full price) before every call.
+  per_agent_daily:
+    scout: 0.30    # Sonnet job scoring, about $0.01 per job
+    tailor: 0.60   # Opus tailoring + Sonnet fact check, about $0.10-0.20 per resume
+    intel: 0.40    # startup research (measured: ~$0.35 for a run with 3 profiles)
+    outreach: 0.20 # contact discovery + Opus message drafting
+
+models:
+  tailoring: claude-opus-5
+  research: claude-opus-5
+  outreach: claude-opus-5
+  verification: claude-sonnet-5
+  humanizer: claude-sonnet-5   # switch to claude-opus-5 for a stronger (pricier) edit
+  default: claude-sonnet-5
+
+timezone: Australia/Melbourne

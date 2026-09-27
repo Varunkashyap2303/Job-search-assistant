@@ -1,0 +1,44 @@
+# Companies polled directly through their public ATS job boards (template).
+# Manage this list from the dashboard's Job search tab. ai_native: true means any role at the company is relevant
+# (the title filter is relaxed to ai_native_title_include). These AU tech/AI companies are an example set.
+
+companies:
+  # AI-native
+  - {name: Relevance AI, ats: ashby, slug: relevanceai, ai_native: true}
+  - {name: Lorikeet, ats: ashby, slug: lorikeet, ai_native: true}
+  - {name: Maincode, ats: ashby, slug: maincode, ai_native: true}
+  - {name: Firmus, ats: greenhouse, slug: firmus}   # AI infra: many non-AI infra roles, so normal title filter
+  - {name: Anthropic, ats: greenhouse, slug: anthropic, ai_native: true}
+  - {name: OpenAI, ats: ashby, slug: openai, ai_native: true}
+  - {name: Cognition, ats: ashby, slug: cognition, ai_native: true}
+  # AU tech with AI/ML teams
+  - {name: Canva, ats: smartrecruiters, slug: canva}
+  - {name: Airwallex, ats: ashby, slug: airwallex}
+  - {name: Culture Amp, ats: greenhouse, slug: cultureamp}
+  - {name: Xero, ats: ashby, slug: xero}
+  - {name: Rokt, ats: workable, slug: rokt}
+  - {name: Eucalyptus, ats: greenhouse, slug: eucalyptus}
+  - {name: Buildkite, ats: greenhouse, slug: buildkite}
+  - {name: Octopus Deploy, ats: greenhouse, slug: octopusdeploy}
+  - {name: Immutable, ats: lever, slug: immutable}
+  - {name: Q-CTRL, ats: lever, slug: q-ctrl}
+  - {name: Deputy, ats: lever, slug: deputy}
+  - {name: Mable, ats: lever, slug: mable}
+  - {name: Brighte, ats: lever, slug: brighte}
+  - {name: Amber Electric, ats: lever, slug: amberelectric}
+  - {name: Vow, ats: ashby, slug: vow}
+  - {name: Judo Bank, ats: smartrecruiters, slug: judobank}
+  - {name: Airtasker, ats: ashby, slug: airtasker}
+  - {name: Prospa, ats: greenhouse, slug: prospa}
+  - {name: Propeller Aero, ats: workable, slug: propeller}
+  - {name: Secure Code Warrior, ats: lever, slug: securecodewarrior}
+  - {name: Vanta, ats: ashby, slug: vanta}
+  - {name: Dovetail, ats: ashby, slug: dovetail}
+  - {name: Blinq, ats: lever, slug: blinq}
+  - {name: Splose, ats: ashby, slug: splose}
+  - {name: carsales, ats: smartrecruiters, slug: carsales}
+  - {name: SEEK, ats: smartrecruiters, slug: seek}
+  - {name: Nearmap, ats: smartrecruiters, slug: nearmap}
+  - {name: Megaport, ats: lever, slug: megaport}
+  - {name: Flare HR, ats: smartrecruiters, slug: flarehr}
+  - {name: Sitemate, ats: ashby, slug: sitemate}
