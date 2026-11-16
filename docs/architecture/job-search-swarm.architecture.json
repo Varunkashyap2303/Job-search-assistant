@@ -1,0 +1,389 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Job Search Swarm — runtime architecture",
+    "locale": "en",
+    "output": "job-search-swarm.architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "primary-path",
+        "label": "Job to application",
+        "focus": [
+          "web",
+          "scout",
+          "tailor",
+          "dashboard",
+          "applications",
+          "browser",
+          "employer"
+        ],
+        "note": "A posting found on the public web becomes a reviewed resume and a pre-filled form you submit."
+      },
+      {
+        "id": "claude-calls",
+        "label": "Claude calls",
+        "focus": [
+          "tailor",
+          "intel",
+          "gateway",
+          "anthropic"
+        ],
+        "note": "Every model call goes through one budget-guarded gateway to the Anthropic API."
+      },
+      {
+        "id": "trust",
+        "label": "Human approval gate",
+        "focus": [
+          "dashboard",
+          "applications",
+          "browser",
+          "employer"
+        ],
+        "note": "Nothing leaves the machine until you approve it and click Submit yourself."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "web",
+      "type": "external",
+      "label": "Public web",
+      "sublabel": "Job boards, RSS, sites",
+      "pos": [
+        260,
+        30
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "untrusted data"
+    },
+    {
+      "id": "scout",
+      "type": "backend",
+      "label": "Job Scout",
+      "sublabel": "fetch, filter, score",
+      "pos": [
+        260,
+        200
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "every 2h"
+    },
+    {
+      "id": "tailor",
+      "type": "backend",
+      "label": "Resume Tailor",
+      "sublabel": "write, verify, humanize",
+      "pos": [
+        480,
+        200
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "dashboard",
+      "type": "frontend",
+      "label": "Dashboard",
+      "sublabel": "Streamlit, localhost",
+      "pos": [
+        700,
+        200
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "you approve"
+    },
+    {
+      "id": "applications",
+      "type": "backend",
+      "label": "Applications",
+      "sublabel": "form schema, answers",
+      "pos": [
+        920,
+        200
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "browser",
+      "type": "backend",
+      "label": "Browser engine",
+      "sublabel": "Playwright, Chromium",
+      "pos": [
+        1140,
+        200
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "employer",
+      "type": "external",
+      "label": "Employer forms",
+      "sublabel": "Greenhouse, Lever, Ashby",
+      "pos": [
+        1140,
+        30
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "you submit"
+    },
+    {
+      "id": "config",
+      "type": "security",
+      "label": "Config & secrets",
+      "sublabel": "profile, prefs, .env",
+      "pos": [
+        920,
+        370
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "intel",
+      "type": "backend",
+      "label": "Intel & outreach",
+      "sublabel": "startups, drafts",
+      "pos": [
+        480,
+        370
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "daily 06:00"
+    },
+    {
+      "id": "gateway",
+      "type": "security",
+      "label": "LLM gateway",
+      "sublabel": "budget guard, ledger",
+      "pos": [
+        260,
+        370
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "SQLite & files",
+      "sublabel": "data/jobsearch.db",
+      "pos": [
+        700,
+        370
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "anthropic",
+      "type": "external",
+      "label": "Anthropic API",
+      "sublabel": "Opus, Sonnet",
+      "pos": [
+        40,
+        370
+      ],
+      "size": [
+        150,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Your computer (trusted)",
+      "wraps": [
+        "scout",
+        "tailor",
+        "dashboard",
+        "applications",
+        "browser",
+        "config",
+        "intel",
+        "gateway",
+        "sqlite"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Human approval gate",
+      "wraps": [
+        "dashboard",
+        "applications",
+        "browser"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Local secrets, git-ignored",
+      "wraps": [
+        "config"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "fetch-postings",
+      "from": "web",
+      "to": "scout",
+      "label": "public APIs",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "shortlist",
+      "from": "scout",
+      "to": "tailor",
+      "label": "shortlist",
+      "variant": "emphasis"
+    },
+    {
+      "id": "review",
+      "from": "tailor",
+      "to": "dashboard",
+      "label": "PDF to review",
+      "variant": "emphasis"
+    },
+    {
+      "id": "approve",
+      "from": "dashboard",
+      "to": "applications",
+      "label": "approved",
+      "variant": "emphasis"
+    },
+    {
+      "id": "answers",
+      "from": "applications",
+      "to": "browser",
+      "label": "answers",
+      "variant": "emphasis"
+    },
+    {
+      "id": "prefill",
+      "from": "browser",
+      "to": "employer",
+      "label": "pre-fill",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "prompts",
+      "from": "tailor",
+      "to": "gateway",
+      "label": "prompts",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [
+        [
+          555,
+          318
+        ],
+        [
+          335,
+          318
+        ]
+      ]
+    },
+    {
+      "id": "research-prompts",
+      "from": "intel",
+      "to": "gateway",
+      "label": "profiles",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "claude-api",
+      "from": "gateway",
+      "to": "anthropic",
+      "label": "HTTPS",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "state",
+      "from": "dashboard",
+      "to": "sqlite",
+      "label": "state",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "answer-defaults",
+      "from": "config",
+      "to": "applications",
+      "label": "your answers",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDy": -18
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Primary path",
+      "items": [
+        "Scout runs every 2h; Sonnet scores newest-first (~$0.007 a job)",
+        "Opus writes a fact-cited resume (~$0.10-0.14)",
+        "You approve; answers are drafted and the form pre-filled"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Claude and state",
+      "items": [
+        "llm.parse() is the only path to Anthropic",
+        "Capped per agent, per day ($1.50) and per month",
+        "Agents hand off only through SQLite"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Trust boundaries",
+      "items": [
+        "Job ads, news and sites are data, never instructions",
+        "Profile and keys stay local; prompts go only to Anthropic",
+        "Nothing is sent or submitted without your click"
+      ]
+    }
+  ]
+}
