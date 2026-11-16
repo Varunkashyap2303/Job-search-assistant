@@ -1,6 +1,6 @@
-"""Schedules the daily runs on any OS: startup intel at 06:00, the job scout every 2 hours 07:00-23:00.
+"""Schedules the daily runs on any OS: the startup brief at 06:00, the job scout every 2 hours 07:00-23:00.
 
-- Windows: Task Scheduler (scripts/schedule_scout.ps1)
+- Windows: Task Scheduler (scripts/schedule_scout.ps1); the 06:00 run wakes the PC from sleep
 - macOS:   two launchd agents in ~/Library/LaunchAgents
 - Linux:   two lines in your crontab (marked so they can be found and removed)
 
@@ -73,7 +73,8 @@ def show() -> str:
     os_name = system()
     if os_name == "windows":
         return (f"Windows Task Scheduler via {ROOT / 'scripts' / 'schedule_scout.ps1'}:\n"
-                "  JobSearch-Intel  daily 06:00\n  JobSearch-Scout  every 2h 07:00-23:00")
+                "  JobSearch-Intel  daily 06:00, wakes the PC from sleep; runs at next logon if it was off\n"
+                "  JobSearch-Scout  every 2h 07:00-23:00")
     if os_name == "macos":
         out = []
         for label, plist in launchd_plists().items():

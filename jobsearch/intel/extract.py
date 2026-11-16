@@ -19,6 +19,9 @@ class FundingEvent(BaseModel):
     hq_city: str = Field(description="Australian city if stated, else empty")
     ai_centricity: Literal["core", "significant", "peripheral", "none"] = Field(
         description="core: the product is AI; significant: AI is a major part; peripheral: AI is incidental")
+    ai_hiring_potential: Literal["high", "medium", "low"] = Field(
+        description="how likely the company is to hire AI engineers in the next 6-12 months, judged from its "
+                    "product, data and what the article says the money is for")
     sector: str
     round: str = Field(description="e.g. pre-seed, seed, Series A; empty if not stated")
     amount_text: str = Field(description="as written, e.g. '$12 million'; empty if not stated")
@@ -38,7 +41,10 @@ For each article, list every company that announced a new funding round (pre-see
 grants and government funding included). Round-up articles can contain several companies; list each.
 Skip acquisitions, IPOs, fund launches by VCs, and companies merely mentioned in passing.
 Use only what the article states. Leave a field empty (or -1 for amounts) rather than guess.
-If the amount is in USD, convert to AUD at 1 USD = 1.5 AUD for amount_aud_millions and keep amount_text as written."""
+If the amount is in USD, convert to AUD at 1 USD = 1.5 AUD for amount_aud_millions and keep amount_text as written.
+ai_hiring_potential applies to every company, not only AI companies: a newly funded fintech, healthtech or
+SaaS startup that plans to build AI features, automate with LLMs or exploit a large dataset is "medium" or
+"high"; a company with no plausible AI work (e.g. a café chain or a hardware reseller) is "low"."""
 
 
 def batches(articles: list[tuple[int, Article]]):

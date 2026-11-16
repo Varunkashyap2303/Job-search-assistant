@@ -69,6 +69,34 @@ def test_draft_for_stores_plan(temp_db, monkeypatch):
     assert d.status == "sent" and d.follow_up_due is not None
 
 
+def test_auto_drafts_best_profiled_startups(temp_db, monkeypatch):
+    from datetime import datetime, timezone
+    now, old = datetime.now(timezone.utc), datetime(2025, 1, 1, tzinfo=timezone.utc)
+    with db.session() as s:
+        s.add_all([
+            db.Startup(name="Mine", name_norm="mine", status="shortlisted", relevance_score=40, profile={"x": 1}),
+            db.Startup(name="Best", name_norm="best", status="profiled", relevance_score=90, latest_announced=now,
+                       profile={"ai_engineer_potential": "high"}),
+            db.Startup(name="Low", name_norm="low", status="profiled", relevance_score=95, latest_announced=now,
+                       profile={"ai_engineer_potential": "low"}),
+            db.Startup(name="Weak fit", name_norm="weak", status="profiled", relevance_score=30, latest_announced=now,
+                       profile={"ai_engineer_potential": "high"}),
+            db.Startup(name="Stale", name_norm="stale", status="profiled", relevance_score=90, profile={"x": 1},
+                       latest_announced=old, first_seen_at=old),
+        ])
+        s.commit()
+    drafted = []
+    monkeypatch.setattr(pipeline, "draft_for", lambda st, *a: drafted.append(st.name) or db.OutreachPlan(startup_id=st.id))
+    monkeypatch.setattr(pipeline, "load_catalogue", lambda: None)
+    monkeypatch.setattr(pipeline, "build_system_prompt", lambda cat: "")
+
+    stats = pipeline.run_outreach()
+    assert drafted == ["Mine"] and stats["planned.auto"] == 0                    # without auto: shortlist only
+    drafted.clear()
+    stats = pipeline.run_outreach(auto=True)
+    assert drafted == ["Mine", "Best"] and stats["planned.auto"] == 1           # shortlist first, then best fit
+
+
 def test_schema_compatible():
     assert transform_schema(TypeAdapter(compose.OutreachPlanOut).json_schema())["additionalProperties"] is False
 

@@ -85,6 +85,7 @@ class Startup(SQLModel, table=True):
     hq_city: str = ""
     sector: str = ""
     ai_centricity: str = ""                     # core | significant | peripheral
+    ai_hiring_potential: str = ""               # high | medium | low: likely to hire AI engineers soon
     one_line: str = ""
     first_seen_at: datetime = Field(default_factory=utcnow)
     latest_round: str = ""

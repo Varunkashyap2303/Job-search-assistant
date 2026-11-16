@@ -50,12 +50,16 @@ def cmd_intel(args) -> None:
     from jobsearch.intel.pipeline import run_intel
 
     with user_scope(args.startup is not None):
-        stats = run_intel(profile_limit=args.profiles, startup_id=args.startup)
+        stats = run_intel(profile_limit=args.profiles, startup_id=args.startup, report=args.startup is not None)
     if args.startup is None:
-        # Draft outreach for anything you shortlisted since the last run
+        # The morning run: draft outreach for your shortlist and the best new startups, then write the brief
+        from jobsearch.config import preferences
+        from jobsearch.intel.report import write_report
         from jobsearch.outreach.pipeline import run_outreach
 
-        stats.update({f"outreach.{k}": v for k, v in run_outreach().items()})
+        auto = preferences()["outreach"].get("auto_draft", True) and not args.no_outreach
+        stats.update({f"outreach.{k}": v for k, v in run_outreach(auto=auto).items()})
+        stats["report"] = write_report(stats)
     print(json.dumps(stats, indent=2, sort_keys=True))
 
 
@@ -114,9 +118,10 @@ def main() -> None:
     p.add_argument("--limit", type=int, default=None, help="max resumes this run")
     p.set_defaults(func=cmd_tailor)
 
-    p = sub.add_parser("intel", help="find newly funded AU AI startups and profile the best ones")
+    p = sub.add_parser("intel", help="morning run: funded AU startups likely to hire AI engineers, profiles, outreach drafts, brief")
     p.add_argument("--profiles", type=int, default=None, help="max Opus profiles this run")
     p.add_argument("--startup", type=int, default=None, help="(re)profile one startup id only")
+    p.add_argument("--no-outreach", action="store_true", help="only draft for startups you shortlisted")
     p.set_defaults(func=cmd_intel)
 
     p = sub.add_parser("outreach", help="draft outreach for shortlisted startups (never sends anything)")
