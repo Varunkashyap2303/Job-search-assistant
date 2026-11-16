@@ -212,7 +212,7 @@ grid effects are CSS in `jobsearch/ui/style.py`.
 |-|-|
 | **Overview** | The home page. A greeting; cards for new jobs (with a 7-day chart), resumes to review, open applications, applications sent and today's spend (with a 7-day chart); a **Next up** list that jumps to whatever needs you; the best new matches and the newest funded startups. On a new install it also shows the setup checklist. |
 | **Jobs** | Every job found, sorted by freshness then fit score. Filter by status, freshness tier (A: under 24h, B: 1–7 days, C: 7–30 days), minimum score and city. Select a job for the scorer's summary, matched strengths, gaps, required skills and keywords, and buttons to shortlist, dismiss, re-score or tailor now. |
-| **Approvals** | Each tailored resume with a page preview, why it was tailored that way, keyword coverage, what the fact checker changed (with the original wording), what the humanizer changed, the cover letter and the cost. Buttons: download PDFs, **Approve** (also prepares the application), **Regenerate** (re-tailors immediately), **Reject**. **Close the gaps** turns the job's gaps into profile facts you confirm, then regenerates. Also lists shortlisted jobs waiting to be tailored (**Tailor now**) and approved ones. |
+| **Approvals** | Each tailored resume with a page preview, why it was tailored that way, keyword coverage, the ATS check, what the fact checker changed (with the original wording), what the humanizer changed, the cover letter and the cost. Buttons: download the .docx and PDF files, **Approve** (also prepares the application), **Regenerate** (re-tailors immediately), **Reject**. **Close the gaps** turns the job's gaps into profile facts you confirm, then regenerates. Also lists shortlisted jobs waiting to be tailored (**Tailor now**) and approved ones. |
 | **Applications** | One card per prepared application: every form question and drafted answer, editable, with *Needs you* questions first. **Preview fill** screenshots the real form filled in (never submitted); **Open pre-filled in browser** gives you a visible window to check and submit; **Mark applied** records it. Guided applications show a copy-paste kit. |
 | **Startups** | The funded-startups list (90-day rolling window, "new today" marker, sorted by relevance to you). Select one for its full profile: vision, product, market, funding, how its focus technology fits the business, hiring signals, named people, relevance and an outreach angle. **Shortlist for outreach**, **Draft outreach**, **Dismiss**, **Re-profile**. |
 | **Outreach** | Contact plans per startup: who to contact first and why, then for each person a connection note, LinkedIn message, email and follow-up in copy boxes, with **Find on LinkedIn** and **Open Gmail draft** links. Mark each **sent**, **replied** or **skipped**; follow-ups show when due. |
@@ -269,10 +269,23 @@ grid effects are CSS in `jobsearch/ui/style.py`.
    "-ing" endings, em dashes, filler, stock transitions and monotonous rhythm. The cover letter gets a plain
    first-person voice. Every line the humanizer changes is fact-checked again, and a line that drifted
    reverts to the fact-checked version.
-5. **Render.** HTML is printed to PDF by a headless browser in a clean one-page A4 layout. If it runs over a
-   page, the lowest-priority bullets are trimmed until it fits. A cover-letter PDF and a preview image are
-   made too.
-6. **Review.** The result waits in **Approvals**.
+5. **ATS rules.** Free, rule-based, and run last so nothing can undo them. See the table below.
+6. **Render.** HTML is printed to a text-based PDF by a headless browser in a one-page A4 layout. If it runs
+   over a page, the lowest-priority bullets are trimmed until it fits. A `.docx` copy of the resume and the
+   cover letter is saved next to each PDF, plus a preview image.
+7. **Review.** The result waits in **Approvals**, with an **ATS check** showing how each rule came out.
+
+**ATS rules.** Recruiters search an applicant tracking system like a database, and matching is literal, so
+every tailored resume follows these rules:
+
+| Rule | How it is enforced |
+|---|---|
+| Exact job title in the header | The headline starts with the posting's title, word for word. Board clutter such as "(Hybrid) - Sydney" is removed; a suffix that is part of the title ("AI Engineer - AI Services") stays. Code adds the title if the model left it out. The titles you actually held are never changed. |
+| 25 to 35 of the ad's own terms | The tailor is told to use 25 to 35 role-specific terms from the ad, word for word, and never more than 35. Code then counts only terms that appear literally in both the ad and the resume, and flags a term repeated more than 5 times. |
+| Truth beats the count | A term is used only where one of your facts is about that same thing. If your profile supports fewer than 25, the resume uses fewer and the ATS check says so. Add real experience under **Close the gaps** to raise it. |
+| One date format | Every date is shown as `Mon YYYY - Mon YYYY`, whatever format the profile uses. A date with no month (just `2025`) is flagged for you to fix, never guessed. |
+| Parser-safe layout | One column, standard headings (Professional Summary, Skills, Work Experience, Projects, Education), contact details in the body rather than a page header or footer, no tables, text boxes, icons or emojis. Code strips any icon or emoji the model writes. |
+| `.docx` first | The `.docx` is what gets attached to application forms, because it parses most reliably. Set `tailoring.upload_format: pdf` to attach the PDF instead. |
 
 **Close the gaps.** Each resume card lists the job's gaps: keywords the resume doesn't cover and gaps the
 scorer found (notes about the ad itself are filtered out). For each gap you really have, choose where it
@@ -431,6 +444,7 @@ Any value that is exactly `TODO` is hidden from the agents and treated as unknow
 | `scoring.shortlist_threshold` | Fit score to shortlist | 70 |
 | `tailoring.auto_after_scout` / `max_per_run` / `max_per_day` | Automatic tailoring limits | true / 3 / 4 |
 | `tailoring.humanize` | Run the humanizer pass | true |
+| `tailoring.upload_format` | File attached to application forms: `docx` or `pdf` | docx |
 | `intel.topic` / `topic_keywords` / `google_news_queries` | Startup research focus | AI |
 | `intel.lookback_days` / `max_profiles_per_day` | News window and daily Opus profiles | 45 / 3 |
 | `outreach.max_startups_per_day` / `max_contacts_per_startup` / `max_role_targets` | Outreach limits | 2 / 3 / 2 |
@@ -548,7 +562,7 @@ jobsearch/
 ├── schedule.py        Task Scheduler / launchd / cron
 ├── onboarding.py      Resume → profile; description → search settings
 ├── scout/             Job Scout: sources/ (ATS boards, Adzuna, Jooble), filters, dedupe, scorer, pipeline
-├── tailor/            Resume Tailor: facts (catalogue), tailor, verify, humanize, render, coverage, gaps, pipeline
+├── tailor/            Resume Tailor: facts (catalogue), tailor, verify, humanize, ats, render, coverage, gaps, pipeline
 ├── intel/             Startup Intel: news, extract, enrich, profile, pipeline
 ├── outreach/          Outreach: people discovery, compose, pipeline
 ├── apply/             Applications: schema (form readers), answers, filler, pipeline

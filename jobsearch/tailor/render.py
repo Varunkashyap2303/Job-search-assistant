@@ -1,5 +1,8 @@
-"""Renders tailored content to PDF with a headless Chromium browser (Edge, Chrome or Playwright's own).
-Layout mirrors the candidate's own resume. Trims the lowest-priority bullets until it fits one A4 page."""
+"""Renders tailored content to a text-based PDF (headless Chromium: Edge, Chrome or Playwright's own) and
+a .docx twin. Trims the lowest-priority bullets until the PDF fits one A4 page.
+
+The layout follows what applicant tracking systems parse reliably: one column read top to bottom, standard
+section headings, contact details in the body (never a page header or footer), no icons, tables or text boxes."""
 
 import html
 import re
@@ -7,6 +10,9 @@ from datetime import date
 from pathlib import Path
 
 import pypdfium2 as pdfium
+from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT
+from docx.shared import Mm, Pt, RGBColor
 from playwright.sync_api import sync_playwright
 
 from jobsearch import browser
@@ -52,10 +58,10 @@ def _header(cat: Catalogue, headline: str) -> str:
 
 def resume_html(r: TailoredResume, cat: Catalogue) -> str:
     out = [_header(cat, r.headline), "<h2>Professional Summary</h2>", f"<p>{_e(r.summary.text)}</p>"]
-    out.append("<h2>Technical Skills</h2>")
+    out.append("<h2>Skills</h2>")
     out += [f"<p><b>{_e(g.label)}:</b> {_e(', '.join(g.items))}</p>" for g in r.skills]
 
-    for title, choices in (("Experience", r.experience), ("Projects", r.projects)):
+    for title, choices in (("Work Experience", r.experience), ("Projects", r.projects)):
         if not choices:
             continue
         out.append(f"<h2>{title}</h2>")
@@ -162,11 +168,115 @@ def render_resume(r: TailoredResume, cat: Catalogue, out_pdf: Path) -> tuple[Tai
                 break
             trims.append(trim)
     out_pdf.with_suffix(".html").write_text(resume_html(r, cat), encoding="utf-8")
+    resume_docx(r, cat, out_pdf.with_suffix(".docx"))
     return r, trims
 
 
 def render_cover_letter(r: TailoredResume, cat: Catalogue, job, out_pdf: Path) -> None:
     html_to_pdf(cover_letter_html(r, cat, job), out_pdf)
+    cover_letter_docx(r, cat, job, out_pdf.with_suffix(".docx"))
+
+
+_NAVY = RGBColor(0x1F, 0x38, 0x64)
+_SEP = "  |  "
+
+
+def _docx_base() -> Document:
+    doc = Document()
+    sec = doc.sections[0]
+    sec.page_width, sec.page_height = Mm(210), Mm(297)
+    sec.top_margin, sec.bottom_margin, sec.left_margin, sec.right_margin = Mm(12), Mm(11), Mm(15), Mm(15)
+    normal = doc.styles["Normal"]
+    normal.font.name, normal.font.size = "Calibri", Pt(10)
+    normal.paragraph_format.space_before = normal.paragraph_format.space_after = Pt(1)
+    return doc
+
+
+def _docx_para(doc, text: str = "", *, bold=False, italic=False, size=None, color=None, center=False, style=None):
+    p = doc.add_paragraph(style=style)
+    if center:
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    if text:
+        run = p.add_run(text)
+        run.bold, run.italic = bold, italic
+        if size:
+            run.font.size = Pt(size)
+        if color:
+            run.font.color.rgb = color
+    return p
+
+
+def _docx_header(doc, cat: Catalogue, headline: str) -> None:
+    """Name and contact details as ordinary body paragraphs: many ATS skip Word's header and footer areas."""
+    ident = cat.identity
+    _docx_para(doc, ident.get("name", "").upper(), bold=True, size=20, color=_NAVY, center=True)
+    _docx_para(doc, headline, center=True)
+    contact = [ident.get("email"), ident.get("phone"), ident.get("location"), cat.work_rights.get("resume_line")]
+    _docx_para(doc, _SEP.join(str(c) for c in contact if c), center=True)
+    links = [re.sub(r"^https?://(www\.)?", "", ident[k]).rstrip("/") for k in ("linkedin", "github", "portfolio") if ident.get(k)]
+    if links:
+        _docx_para(doc, _SEP.join(links), center=True)
+
+
+def _docx_section(doc, title: str) -> None:
+    h = doc.add_paragraph(style="Heading 1")   # a real heading style, so parsers recognise the section
+    run = h.add_run(title.upper())
+    run.font.name, run.font.size, run.font.color.rgb, run.bold = "Calibri", Pt(11.5), _NAVY, True
+    h.paragraph_format.space_before, h.paragraph_format.space_after = Pt(8), Pt(3)
+
+
+def _docx_row(doc, left: str, right: str) -> None:
+    """Bold heading with dates after a right-aligned tab stop: one line of plain text, no table."""
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(4)
+    p.paragraph_format.tab_stops.add_tab_stop(Mm(180), WD_TAB_ALIGNMENT.RIGHT)
+    p.add_run(left).bold = True
+    if right:
+        p.add_run("\t" + right)
+
+
+def resume_docx(r: TailoredResume, cat: Catalogue, out_docx: Path) -> Path:
+    doc = _docx_base()
+    _docx_header(doc, cat, r.headline)
+    _docx_section(doc, "Professional Summary")
+    _docx_para(doc, r.summary.text)
+    _docx_section(doc, "Skills")
+    for g in r.skills:
+        p = doc.add_paragraph()
+        p.add_run(f"{g.label}: ").bold = True
+        p.add_run(", ".join(g.items))
+    for title, choices in (("Work Experience", r.experience), ("Projects", r.projects)):
+        if not choices:
+            continue
+        _docx_section(doc, title)
+        for c in choices:
+            e = cat.entries[c.ref]
+            _docx_row(doc, e.heading + (f"{_SEP}{e.badge}" if e.badge else ""), _SEP.join(x for x in (e.dates, e.location) if x))
+            if e.subtitle:
+                _docx_para(doc, e.subtitle, italic=True)
+            for b in c.bullets:
+                _docx_para(doc, b.text, style="List Bullet")
+    _docx_section(doc, "Education")
+    for ed in cat.education:
+        _docx_row(doc, f"{ed.get('degree')}{_SEP}{ed.get('institution')}",
+                  _SEP.join(str(x) for x in (fmt_range(ed.get("dates", "")), ed.get("location")) if x))
+    out_docx.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(out_docx))
+    return out_docx
+
+
+def cover_letter_docx(r: TailoredResume, cat: Catalogue, job, out_docx: Path) -> Path:
+    doc = _docx_base()
+    _docx_header(doc, cat, r.headline)
+    d = date.today()
+    lines = ["", f"{d.day} {d.strftime('%B %Y')}", f"Hiring Team\n{job.company}", f"Re: {job.title}", "Dear Hiring Team,",
+             *(b.text for b in r.cover_letter), f"Kind regards,\n{cat.identity.get('name', '')}"]
+    for line in lines:
+        p = _docx_para(doc, line, size=11, bold=line.startswith("Re: "))
+        p.paragraph_format.space_after = Pt(8)
+    out_docx.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(out_docx))
+    return out_docx
 
 
 def preview_png(pdf_path: Path, out_png: Path, scale: float = 1.4) -> Path:

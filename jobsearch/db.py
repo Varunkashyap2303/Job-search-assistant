@@ -54,7 +54,8 @@ class ResumeVersion(SQLModel, table=True):
     trims: list = Field(default_factory=list, sa_column=Column(JSON))
     coverage: list = Field(default_factory=list, sa_column=Column(JSON))     # [{keyword, status}]
     humanizer: dict = Field(default_factory=dict, sa_column=Column(JSON))    # changes, reverted lines, AI tells before/after
-    resume_pdf: str = ""
+    ats: dict = Field(default_factory=dict, sa_column=Column(JSON))          # ATS rule check: title, keyword count, dates
+    resume_pdf: str = ""            # the .docx twin sits next to each PDF, same name
     cover_letter_pdf: str = ""
     cost_usd: float = 0.0
     # pending_review -> approved | rejected

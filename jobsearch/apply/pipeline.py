@@ -9,6 +9,7 @@ from sqlmodel import select
 
 from jobsearch import llm
 from jobsearch.apply import answers, filler, schema
+from jobsearch.config import preferences
 from jobsearch.db import Application, Job, ResumeVersion, session, utcnow
 from jobsearch.tailor.facts import load_catalogue
 
@@ -24,13 +25,22 @@ def _status(fields: list[dict]) -> str:
     return "needs_input" if blocking_fields(fields) else "ready"
 
 
+def upload_file(pdf_path: str) -> str:
+    """The file to attach to a form. .docx parses most reliably across ATS, so it is the default;
+    set tailoring.upload_format to pdf to attach the PDF instead."""
+    docx = Path(pdf_path).with_suffix(".docx") if pdf_path else None
+    if docx and docx.exists() and preferences().get("tailoring", {}).get("upload_format", "docx") == "docx":
+        return str(docx)
+    return pdf_path
+
+
 def prepare(resume_version_id: int) -> Application:
     started = datetime.now(timezone.utc)
     with session() as s:
         v = s.get(ResumeVersion, resume_version_id)
         job = s.get(Job, v.job_id)
     ats, url, form = schema.read_form(job)
-    files = {"resume": v.resume_pdf, "cover_letter": v.cover_letter_pdf}
+    files = {"resume": upload_file(v.resume_pdf), "cover_letter": upload_file(v.cover_letter_pdf)}
     cover = [p["text"] for p in (v.content or {}).get("cover_letter", [])]
     facts_text = " ".join(load_catalogue().facts.values())
     filled = [f.to_dict() for f in answers.fill_answers(form, job, files, cover, facts_text)]

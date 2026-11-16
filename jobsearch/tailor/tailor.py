@@ -26,13 +26,14 @@ class SkillGroup(BaseModel):
 
 
 class TailoredResume(BaseModel):
-    headline: str = Field(description="line under the name, e.g. 'AI Engineer | LLM Applications | Agentic Systems'")
+    headline: str = Field(description="line under the name: the ad's exact job title first, then up to two short phrases, e.g. 'AI Engineer | LLM Applications | Agentic Systems'")
     summary: Bullet
     skills: list[SkillGroup]
     experience: list[EntryChoice]
     projects: list[EntryChoice] = Field(description="most relevant first")
     cover_letter: list[Bullet] = Field(description="3-4 paragraphs, no greeting or sign-off")
     tailoring_notes: str = Field(description="for the candidate: what was emphasised for this role and why, and any gaps to prepare for")
+    ad_terms: list[str] = Field(default_factory=list, description="the distinct role-specific terms from the ad that appear word for word in the resume you wrote, each spelled exactly as the ad spells it")
 
 
 SYSTEM_TEMPLATE = """You tailor one candidate's resume and cover letter to a specific job ad.
@@ -57,7 +58,20 @@ Selection and emphasis:
 - The resume must fit one A4 page: at most about 14 bullets in total across experience and projects.
 - A project's award is already shown next to its name, so don't spend a bullet repeating it.
 - Summary: 2-3 sentences positioning the candidate for this role.
-- Headline: short positioning line for this role type, true to the candidate's actual experience.
+- Headline: starts with the job title exactly as the ad writes it (the Title field, without location or
+  contract notes), then at most two short positioning phrases true to the candidate's experience. The
+  headline names the role applied for; never change the titles the candidate actually held.
+
+ATS matching (recruiters search an applicant tracking system by keyword, and matching is literal):
+- Work 25 to 35 distinct role-specific terms from the ad into the resume, word for word: tools, methods,
+  domain terms, the job title. Never more than 35, which reads as keyword stuffing.
+- Use the ad's exact string, not a synonym or abbreviation, but only where the candidate's facts are about
+  that same thing. A different product or method is not the same thing: never rename one into the other.
+- If the facts honestly support fewer than 25, use fewer. Truthfulness always beats the count.
+- Spread terms across the summary, skills and bullets in natural sentences. Don't repeat one term more
+  than a few times, and don't list terms that no bullet backs up.
+- List the terms you used in `ad_terms`.
+- Plain text only: no emojis, icons, arrows or decorative symbols anywhere.
 
 Cover letter:
 - 3-4 short paragraphs in plain Australian-English business tone, without greeting or sign-off.

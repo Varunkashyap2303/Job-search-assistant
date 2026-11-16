@@ -105,7 +105,7 @@ def humanize(r: TailoredResume, cat: Catalogue, job) -> tuple[TailoredResume, di
     cfg = preferences()
     items = _items(r)
     keywords = list(dict.fromkeys((job.assessment or {}).get("ats_keywords", []) +
-                                  (job.assessment or {}).get("must_have_skills", [])))
+                                  (job.assessment or {}).get("must_have_skills", []) + r.ad_terms))
     blocks = []
     for cid, b, owner in items:
         heading = cat.entries[owner].heading if owner in cat.entries else ("Cover letter" if cid.startswith("cover") else "Summary")

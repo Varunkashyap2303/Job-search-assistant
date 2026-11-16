@@ -41,6 +41,7 @@ tailoring:
   effort: medium
   humanize: true           # humanizer pass (humanize-writing skill) after the fact check
   humanizer_effort: medium
+  upload_format: docx      # file attached to application forms: docx parses most reliably in ATS; or pdf
 
 intel:
   topic: AI                  # research focus for the funded-startups list

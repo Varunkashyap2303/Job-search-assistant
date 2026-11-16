@@ -3,6 +3,7 @@ the verifier checks every claim against the facts it cites."""
 
 import re
 from dataclasses import dataclass, field
+from datetime import date
 
 from jobsearch.config import profile, strip_todos
 
@@ -14,7 +15,7 @@ class Entry:
     ref: str
     kind: str                   # experience | project
     heading: str                # "Data Analyst | Acme" or project name
-    dates: str                  # display form, e.g. "Jul 2026 – Present"
+    dates: str                  # display form, always "Mon YYYY - Mon YYYY"
     location: str
     subtitle: str               # italic line: project name and/or stack
     badge: str                  # e.g. award shown next to a project name
@@ -50,16 +51,26 @@ def words(text: str) -> list[str]:
 
 
 def fmt_month(value) -> str:
+    """Any common month format -> 'Mon YYYY'. One format everywhere, so an ATS adds up experience correctly."""
     value = str(value).strip()
-    if value.lower() == "present":
+    if value.lower() in ("present", "current", "now"):
         return "Present"
-    m = re.fullmatch(r"(\d{4})-(\d{2})", value)
-    return f"{_MONTHS[int(m.group(2)) - 1]} {m.group(1)}" if m else value
+    if m := re.fullmatch(r"(\d{4})[-/.](\d{1,2})", value):
+        year, month = m.group(1), int(m.group(2))
+    elif m := re.fullmatch(r"(\d{1,2})[-/.](\d{4})", value):
+        year, month = m.group(2), int(m.group(1))
+    elif (m := re.fullmatch(r"([A-Za-z]{3,9})\.?,?\s+'?(\d{4}|\d{2})", value)) and m.group(1)[:3].title() in _MONTHS:
+        year, month = m.group(2), _MONTHS.index(m.group(1)[:3].title()) + 1
+        if len(year) == 2:
+            year = ("20" if int(year) <= date.today().year % 100 else "19") + year
+    else:
+        return value
+    return f"{_MONTHS[month - 1]} {year}" if 1 <= month <= 12 else value
 
 
 def fmt_range(text: str) -> str:
-    parts = [p.strip() for p in re.split(r"\s+to\s+", str(text))]
-    return " – ".join(fmt_month(p) for p in parts)
+    parts = [p.strip() for p in re.split(r"\s+(?:to|-|–|—)\s+", str(text))]
+    return " - ".join(fmt_month(p) for p in parts)
 
 
 def load_catalogue() -> Catalogue:
@@ -74,7 +85,7 @@ def load_catalogue() -> Catalogue:
             ref=ref,
             kind="experience",
             heading=f"{x['title']}  |  {x['company']}",
-            dates=f"{fmt_month(x['start'])} – {fmt_month(x.get('end', 'present'))}",
+            dates=f"{fmt_month(x['start'])} - {fmt_month(x.get('end', 'present'))}",
             location=x.get("location", ""),
             subtitle=" — ".join(filter(None, [x.get("project", ""), ", ".join(x.get("stack", []))])),
             badge="",

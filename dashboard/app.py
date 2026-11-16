@@ -39,7 +39,7 @@ from jobsearch.config import local_tz, preferences  # noqa: E402
 from jobsearch.db import (Application, Job, LlmUsage, OutreachDraft, OutreachPlan, ResumeVersion, RunLog, Startup,  # noqa: E402
                           as_utc, session, utcnow)
 from jobsearch.scout.filters import FRESHNESS_TIERS, freshness_tier  # noqa: E402
-from jobsearch.tailor import gaps  # noqa: E402
+from jobsearch.tailor import ats, gaps  # noqa: E402
 from jobsearch.tailor.facts import load_catalogue  # noqa: E402
 
 st.set_page_config(page_title="Job Search Swarm", page_icon=":material/work:", layout="wide")
@@ -222,6 +222,50 @@ def page_jobs() -> None:
                 st.text(job.description or "(none)")
 
 # ---------- approvals ----------
+def ats_check(col, a: dict) -> None:
+    """ATS rules for one tailored resume: exact job title, 25-35 of the ad's own terms, one date format."""
+    if not a:
+        col.caption("ATS check: made before the ATS rules existed. Regenerate to apply them.")
+        return
+    kw = a.get("keywords", {})
+    n, lo, hi = kw.get("count", 0), ats.KEYWORD_MIN, ats.KEYWORD_MAX
+    col.markdown("**ATS check**")
+    lines = [(":material/check_circle:" if a.get("title_in_header") else ":material/error:")
+             + f" Exact job title in the header: {md(a.get('title', ''))}"]
+    if kw.get("status") == "within":
+        lines.append(f":material/check_circle: {n} of the ad's own terms used word for word (target {lo}-{hi})")
+    elif kw.get("status") == "above":
+        lines.append(f":material/error: {n} ad terms, over the {hi} limit: this can read as keyword stuffing")
+    else:
+        lines.append(f":material/warning: {n} ad terms, under the {lo}-{hi} target. Short ads and profile gaps "
+                     "cause this; add real experience under **Close the gaps** rather than padding")
+    if kw.get("repeated"):
+        lines.append(":material/warning: Repeated often: " + md(", ".join(kw["repeated"])))
+    dates = a.get("date_issues", [])
+    lines.append(":material/check_circle: Dates all in Mon YYYY format" if not dates
+                 else ":material/error: Fix these dates in your profile: " + md("; ".join(dates)))
+    lines.append(":material/check_circle: One column, standard headings, contact details in the body, no icons")
+    col.markdown("  \n".join(lines))
+    if a.get("fixes"):
+        col.caption("Fixed automatically: " + md("; ".join(a["fixes"])))
+    if kw.get("terms"):
+        with col.popover(f"Matched terms ({n})"):
+            st.write(md(", ".join(kw["terms"])))
+
+
+def download_files(col, pdf_path: str, label: str, key: str) -> None:
+    """Download buttons for a document's .docx (the safest format for ATS) and its PDF."""
+    if not pdf_path or not Path(pdf_path).exists():
+        return
+    docx = Path(pdf_path).with_suffix(".docx")
+    if docx.exists():
+        col.download_button(f"{label} .docx", docx.read_bytes(), file_name=docx.name, key=f"{key}d", width="stretch",
+                            icon=":material/download:", help="Parses most reliably in applicant tracking systems",
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    col.download_button(f"{label} PDF", Path(pdf_path).read_bytes(), file_name=Path(pdf_path).name,
+                        mime="application/pdf", key=key, width="stretch", icon=":material/download:")
+
+
 def page_approvals() -> None:
     style.header('Approvals', 'Tailored resumes waiting for you. Nothing is sent without your OK.')
     with session() as s:
@@ -254,6 +298,7 @@ def page_approvals() -> None:
             if not cov.empty:
                 right.markdown("**Keyword coverage**")
                 right.dataframe(cov, hide_index=True, width="stretch")
+            ats_check(right, v.ats or {})
             if v.verification:
                 right.markdown(f"**Fact-checker changes ({len(v.verification)})**")
                 for item in v.verification:
@@ -344,13 +389,8 @@ def page_approvals() -> None:
                             st.info("Nothing to change: choose where a gap belongs, or pick keywords to mention.")
             c1, c2, c3, c4, c5 = st.columns(5)
             c1.link_button("Open posting", job.url, width="stretch", icon=":material/open_in_new:")
-            with open(v.resume_pdf, "rb") as f:
-                c2.download_button("Resume PDF", f.read(), file_name=Path(v.resume_pdf).name,
-                                   mime="application/pdf", key=f"r{v.id}", width="stretch", icon=":material/download:")
-            if v.cover_letter_pdf and Path(v.cover_letter_pdf).exists():
-                with open(v.cover_letter_pdf, "rb") as f:
-                    c3.download_button("Cover letter PDF", f.read(), file_name=Path(v.cover_letter_pdf).name,
-                                       mime="application/pdf", key=f"c{v.id}", width="stretch", icon=":material/download:")
+            download_files(c2, v.resume_pdf, "Resume", f"r{v.id}")
+            download_files(c3, v.cover_letter_pdf, "Cover letter", f"c{v.id}")
             if c4.button("Approve", key=f"a{v.id}", type="primary", width="stretch", icon=":material/check_circle:"):
                 review(v.id, "approve")
                 from jobsearch.apply.pipeline import prepare
@@ -487,9 +527,7 @@ def page_applications() -> None:
             b1, b2, b3, b4 = st.columns(4)
             b1.link_button("Application page", a.apply_url or job.url, width="stretch", icon=":material/open_in_new:")
             if ver:
-                with open(ver.resume_pdf, "rb") as fh:
-                    b2.download_button("Resume PDF", fh.read(), file_name=Path(ver.resume_pdf).name,
-                                       mime="application/pdf", key=f"ar{a.id}", width="stretch")
+                download_files(b2, ver.resume_pdf, "Resume", f"ar{a.id}")
             if a.mode == "prefill":
                 if b3.button("Preview fill", key=f"ap{a.id}", width="stretch", icon=":material/preview:", help="Fills the form in a hidden browser and screenshots it. Never submits."):
                     with st.spinner("Filling the form in a hidden browser and taking a screenshot..."):

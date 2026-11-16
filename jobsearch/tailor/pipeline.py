@@ -10,7 +10,7 @@ from sqlmodel import select
 from jobsearch import llm
 from jobsearch.config import DATA_DIR, local_tz, preferences
 from jobsearch.db import Job, ResumeVersion, RunLog, session, utcnow
-from jobsearch.tailor import render
+from jobsearch.tailor import ats, render
 from jobsearch.tailor.coverage import keyword_coverage
 from jobsearch.tailor.facts import Catalogue, load_catalogue
 from jobsearch.tailor.humanize import humanize
@@ -35,6 +35,8 @@ def humanize_step(verified: TailoredResume, cat: Catalogue, job: Job) -> tuple[T
 
 
 def _render(content: TailoredResume, cat: Catalogue, job: Job) -> dict:
+    # ATS rules run last, so nothing after them (the humanizer included) can undo the exact job title
+    content, ats_fixes = ats.enforce(content, job)
     who = render.safe_name(cat.identity.get("name", "Resume"))
     company = render.safe_name(job.company)
     folder = RESUME_DIR / f"{job.id}_{company}_{render.safe_name(job.title)}"
@@ -48,6 +50,7 @@ def _render(content: TailoredResume, cat: Catalogue, job: Job) -> dict:
         "content": fitted.model_dump(),
         "trims": trims,
         "coverage": keyword_coverage(fitted, cat, job.assessment or {}),
+        "ats": ats.report(fitted, cat, job, ats_fixes),
         "resume_pdf": str(resume_pdf),
         "cover_letter_pdf": str(cover_pdf) if fitted.cover_letter else "",
     }
