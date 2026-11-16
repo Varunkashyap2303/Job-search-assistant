@@ -44,7 +44,8 @@ tailoring:
 
 intel:
   topic: AI                  # research focus for the funded-startups list
-  topic_keywords:            # regexes; a funding article must mention one (round-ups always pass)
+  require_topic_mention: false   # false: any AU funding story is checked for AI-engineer hiring potential
+  topic_keywords:            # regexes; with require_topic_mention, a funding article must mention one
     - '\bai\b'
     - 'artificial intelligence'
     - 'machine learning'
@@ -52,7 +53,7 @@ intel:
     - 'gen(erative)? ?ai'
     - 'agentic'
   lookback_days: 45
-  max_profiles_per_day: 3
+  max_profiles_per_day: 3    # Opus deep profiles in the morning brief (~$0.10 each)
   effort: medium
   feeds:
     - {name: Startup Daily, url: "https://www.startupdaily.net/feed/"}
@@ -62,9 +63,12 @@ intel:
   google_news_queries:
     - '(raises OR raised OR funding OR seed OR "Series A" OR "Series B") AI startup Australia when:7d'
     - '(Melbourne OR Sydney OR Brisbane) AI startup (raises OR funding OR "pre-seed") when:7d'
+    - 'Australian startup (raises OR raised OR "seed round" OR "Series A" OR "Series B") when:3d'
 
 outreach:
-  max_startups_per_day: 2       # Opus drafting (~$0.08-0.15 per startup)
+  max_startups_per_day: 3       # Opus drafting (~$0.08-0.15 per startup)
+  auto_draft: true              # morning run also drafts for the best profiled startups, not just your shortlist
+  auto_min_relevance: 50        # fit score a startup needs for an automatic draft
   max_contacts_per_startup: 3
   max_role_targets: 2           # roles to look up on LinkedIn when no named person fits
   connection_note_chars: 200    # LinkedIn's limit for free accounts; 300 with Premium
@@ -80,8 +84,8 @@ budget:
   per_agent_daily:
     scout: 0.30    # Sonnet job scoring, about $0.01 per job
     tailor: 0.60   # Opus tailoring + Sonnet fact check, about $0.10-0.20 per resume
-    intel: 0.40    # startup research (measured: ~$0.35 for a run with 3 profiles)
-    outreach: 0.20 # contact discovery + Opus message drafting
+    intel: 0.50    # startup research (measured: ~$0.35 for a run with 3 profiles)
+    outreach: 0.40 # contact discovery + Opus message drafting (~$0.11 per startup)
 
 models:
   tailoring: claude-opus-5

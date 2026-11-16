@@ -115,20 +115,25 @@ def collect(cfg: dict) -> list[Article]:
     return unique
 
 
-def topic_regex(cfg: dict) -> re.Pattern:
-    """The research focus (default: AI) as a regex; set intel.topic_keywords in preferences to change it."""
+def topic_regex(cfg: dict) -> re.Pattern | None:
+    """The research focus (default: AI) as a regex; set intel.topic_keywords in preferences to change it.
+    None when intel.require_topic_mention is false: any funding story passes and extraction judges whether
+    the company is likely to hire for the focus."""
+    if not cfg.get("require_topic_mention", False):
+        return None
     words = cfg.get("topic_keywords")
     return re.compile("|".join(words), re.I) if words else _AI
 
 
-def is_candidate(a: Article, topic: re.Pattern = _AI) -> bool:
-    """Free filter: funding news about (probably) Australian companies in the focus topic, or a round-up."""
+def is_candidate(a: Article, topic: re.Pattern | None = _AI) -> bool:
+    """Free filter: funding news about (probably) Australian companies, in the focus topic unless topic is None,
+    or a round-up."""
     text = f"{a.title} {a.summary} {a.text[:3000]}"
     if not _FUNDING.search(text):
         return False
     if not a.au_source and not _AU.search(text):
         return False
-    return bool(_ROUNDUP.search(a.title) or topic.search(text))
+    return bool(topic is None or _ROUNDUP.search(a.title) or topic.search(text))
 
 
 def fetch_article_text(url: str, limit: int = 9000) -> str:

@@ -285,25 +285,36 @@ keywords already in your profile to appear.
 1. **Collect (free).** Reads RSS from Startup Daily, SmartCompany, StartupSmart and Crunchbase News, plus
    Google News searches built from your research focus. Each article is recorded, so it's processed only
    once.
-2. **Filter (free).** Keeps articles about funding that mention your focus and Australia. Weekly funding
-   round-ups always pass.
+2. **Filter (free).** Keeps articles about funding that mention Australia, in any sector. Set
+   `intel.require_topic_mention: true` to also require a mention of your focus (weekly round-ups always pass).
 3. **Extract (Sonnet).** Several articles per call become structured funding events: company, city, round,
-   amount, investors, date and how central your focus is to the company. Only Australian companies where
-   it's core or significant are kept.
+   amount, investors, date, how central your focus is to the company, and how likely it is to hire AI
+   engineers in the next 6-12 months. Australian companies are kept when AI is core or significant to them,
+   or when their AI-engineer hiring potential is medium or high (a fintech building AI features after its
+   raise, say).
 4. **Enrich (free).** Finds the company's website (rejecting parked and placeholder pages), careers-page
    text and public job board. Companies with a job board are added to your watchlist automatically, so the
    Job Scout starts checking their roles.
 5. **Profile (Opus).** Each day the most promising new startups (`intel.max_profiles_per_day`, favouring
    focus-centric, preferred-city, currently hiring and recently funded) get an in-depth profile. It covers
    vision, product, customers, business model, funding, a detailed analysis of how the focus technology fits
-   their product (evidence kept separate from inference), likely roles, hiring signals, people named in the
-   sources (never invented), relevance to you and an outreach angle.
-6. **Report.** Shown in the **Startups** tab and written to `data/reports/intel_YYYY-MM-DD.md`.
+   their product (evidence kept separate from inference), an **AI engineer potential** rating (high, medium or
+   low) with its reasons and what an AI engineer would likely build there, likely roles, hiring signals,
+   people named in the sources (never invented), relevance to you and an outreach angle.
+6. **Outreach** (morning run only). Drafts contacts and messages for the best new startups; see below.
+7. **Morning brief.** Shown in the **Startups** tab and written to `data/reports/intel_YYYY-MM-DD.md`: an
+   at-a-glance table, then for each profiled startup its details, AI engineer potential, the people to reach
+   out to (role, where they were found, email if published, LinkedIn search link) and every drafted message.
+   Startups not profiled yet, or rated unlikely to hire, are listed at the end in one line each.
 
 ### 4. Outreach
 
-1. **Trigger.** Shortlist a startup and click *Draft outreach*, or let the 06:00 run draft for shortlisted
-   startups.
+1. **Trigger.** Shortlist a startup and click *Draft outreach*, or let the 06:00 run draft for you. The
+   morning run drafts your shortlist first, then the best-fitting profiled startups funded within
+   `intel.lookback_days` whose AI engineer potential isn't low and whose fit is at least
+   `outreach.auto_min_relevance` (50), up to `outreach.max_startups_per_day` (3). Set
+   `outreach.auto_draft: false`, or run `python -m jobsearch intel --no-outreach`, to draft only for your
+   shortlist.
 2. **Find people (free, plus one small Sonnet call).** Founders and leaders named in the news, people on the
    company's own about and team pages, and email addresses the company publishes. An email *format* is
    inferred only when a published address proves it, and it's labelled unverified. LinkedIn is never
@@ -501,8 +512,11 @@ Two jobs are scheduled: **intel at 06:00** (followed by outreach drafts), and **
 | macOS | launchd agents | `~/Library/LaunchAgents/com.jobsearch-swarm.{intel,scout}.plist` |
 | Linux | cron | Two lines in `crontab -l`, marked `# jobsearch-swarm` |
 
-Scheduled runs log to `data/logs/` and appear in the **Runs** tab. Your computer needs to be on. If it was
-asleep at a scheduled time, Task Scheduler and launchd run the missed job when it wakes; cron skips it.
+Scheduled runs log to `data/logs/` and appear in the **Runs** tab. Your computer needs to be on. On Windows
+the 06:00 run wakes the PC from sleep (wake timers must be allowed: Control Panel → Power Options → Change
+plan settings → Advanced → Sleep → Allow wake timers) and, if the PC was off, runs at your next logon. If
+the computer was asleep at a scheduled time, Task Scheduler and launchd run the missed job when it wakes;
+cron skips it.
 
 ---
 

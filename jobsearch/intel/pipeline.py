@@ -1,4 +1,5 @@
-"""Startup Intel run: news -> free filter -> Sonnet extraction -> free enrichment -> Opus profiles -> report."""
+"""Startup Intel run: news -> free filter -> Sonnet extraction -> free enrichment -> Opus profiles -> report.
+The scheduled morning run (`python -m jobsearch intel`) drafts outreach between the profiles and the report."""
 
 import logging
 from collections import Counter
@@ -7,21 +8,25 @@ from datetime import datetime, timedelta, timezone
 from sqlmodel import select
 
 from jobsearch import llm
-from jobsearch.config import DATA_DIR, local_tz, preferences
+from jobsearch.config import local_tz, preferences
 from jobsearch.db import NewsItem, RunLog, Startup, as_utc, session, utcnow
 from jobsearch.intel import enrich, extract, news
 from jobsearch.intel.profile import build_system_prompt, write_profile
+from jobsearch.intel.report import write_report
 from jobsearch.scout.dedupe import norm_company
 from jobsearch.scout.sources.base import parse_iso
 
 log = logging.getLogger(__name__)
 
-REPORT_DIR = DATA_DIR / "reports"
 KEEP_AI = {"core", "significant"}
+KEEP_HIRING = {"high", "medium"}
+POTENTIAL_RANK = {"high": 2, "medium": 1, "low": 0}
 
 
 def _keep(ev: extract.FundingEvent) -> bool:
-    return ev.ai_centricity in KEEP_AI and (ev.is_australian == "yes" or (ev.is_australian == "unclear" and ev.hq_city))
+    """Australian, and either an AI company or one likely to hire AI engineers after the raise."""
+    relevant = ev.ai_centricity in KEEP_AI or ev.ai_hiring_potential in KEEP_HIRING
+    return relevant and (ev.is_australian == "yes" or (ev.is_australian == "unclear" and ev.hq_city))
 
 
 def _event_date(ev: extract.FundingEvent, article: news.Article) -> datetime | None:
@@ -60,6 +65,8 @@ def upsert_startup(ev: extract.FundingEvent, article: news.Article, stats: Count
         rank = {"core": 2, "significant": 1}
         if rank.get(ev.ai_centricity, 0) > rank.get(st.ai_centricity, 0):
             st.ai_centricity = ev.ai_centricity
+        if not st.profiled_at and POTENTIAL_RANK[ev.ai_hiring_potential] >= POTENTIAL_RANK.get(st.ai_hiring_potential, -1):
+            st.ai_hiring_potential = ev.ai_hiring_potential
         if article.text and len(st.article_excerpt) < 500:
             st.article_excerpt = _excerpt_about(article.text, ev.company)
         s.add(st)
@@ -150,6 +157,7 @@ def enrich_new(stats: Counter) -> None:
 
 def _priority(st: Startup, preferred: list[str]) -> tuple:
     return (
+        POTENTIAL_RANK.get(st.ai_hiring_potential, 0),
         st.ai_centricity == "core",
         any(c.lower() in (st.hq_city or "").lower() for c in preferred),
         bool(st.careers.get("open_roles")),
@@ -193,6 +201,7 @@ def profile_top(cfg: dict, stats: Counter, limit: int | None = None, startup_id:
             st.profiled_at = utcnow()
             st.relevance_score = p.relevance_score
             st.ai_centricity = p.ai_centricity
+            st.ai_hiring_potential = p.ai_engineer_potential
             if not p.website_consistent:
                 st.website = ""
             if st.status == "new":
@@ -202,41 +211,7 @@ def profile_top(cfg: dict, stats: Counter, limit: int | None = None, startup_id:
         stats["profiled"] += 1
 
 
-def write_report(stats: Counter) -> str:
-    REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    today = datetime.now(local_tz()).date()
-    cutoff = datetime.now(timezone.utc) - timedelta(days=90)
-    with session() as s:
-        rows = s.exec(select(Startup).where(Startup.status != "dismissed")).all()
-    rows = [r for r in rows if (as_utc(r.latest_announced) or as_utc(r.first_seen_at)) >= cutoff]
-    rows.sort(key=lambda r: (r.relevance_score or -1, as_utc(r.latest_announced) or cutoff), reverse=True)
-    new_today = [r for r in rows if as_utc(r.first_seen_at).astimezone(local_tz()).date() == today]
-
-    lines = [f"# Funded AU AI startups: {today}", "",
-             f"{len(new_today)} new today · {len(rows)} tracked (last 90 days)", ""]
-    for r in rows:
-        p = r.profile or {}
-        tag = " **NEW**" if r in new_today else ""
-        lines.append(f"## {r.name}{tag}")
-        lines.append(f"{r.hq_city or 'city n/a'} · {r.sector} · {r.latest_round or 'round n/a'} "
-                     f"{r.latest_amount_text} · {r.latest_announced.date() if r.latest_announced else ''} · "
-                     f"AI: {r.ai_centricity} · relevance: {r.relevance_score if r.relevance_score is not None else 'not profiled'}")
-        if r.website:
-            lines.append(f"Website: {r.website}")
-        if p:
-            lines += ["", f"**Vision.** {p['vision']}", "", f"**Product.** {p['product']}", "",
-                      f"**Funding.** {p['funding_summary']}", "", "**How AI fits in.**", p["ai_implementation"], "",
-                      f"**Hiring.** {p['hiring_signals']}", "", f"**Why you.** {p['relevance_reasons']}",
-                      f"**Outreach angle.** {p['outreach_angle']}"]
-        else:
-            lines.append(r.one_line)
-        lines.append("")
-    path = REPORT_DIR / f"intel_{today}.md"
-    path.write_text("\n".join(lines), encoding="utf-8")
-    return str(path)
-
-
-def run_intel(profile_limit: int | None = None, startup_id: int | None = None) -> dict:
+def run_intel(profile_limit: int | None = None, startup_id: int | None = None, report: bool = True) -> dict:
     cfg = preferences()["intel"]
     stats: Counter = Counter()
     with session() as s:
@@ -248,7 +223,8 @@ def run_intel(profile_limit: int | None = None, startup_id: int | None = None) -
             discover(cfg, stats)
             enrich_new(stats)
         profile_top(cfg, stats, profile_limit, startup_id)
-        stats["report"] = write_report(stats)
+        if report:
+            stats["report"] = write_report(stats)
     except Exception as e:
         run.error = repr(e)
         raise

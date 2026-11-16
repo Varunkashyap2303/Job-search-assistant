@@ -1,5 +1,5 @@
-"""Outreach run: shortlisted startups -> contacts -> Opus-drafted messages awaiting your review.
-Nothing is ever sent from here; you send each message yourself from the dashboard."""
+"""Outreach run: shortlisted startups (and, in the morning run, the best recently funded ones) -> contacts ->
+Opus-drafted messages awaiting your review. Nothing is ever sent from here; you send each message yourself."""
 
 import logging
 from collections import Counter
@@ -9,7 +9,7 @@ from sqlmodel import select
 
 from jobsearch import llm
 from jobsearch.config import local_tz, preferences
-from jobsearch.db import OutreachDraft, OutreachPlan, RunLog, Startup, session, utcnow
+from jobsearch.db import OutreachDraft, OutreachPlan, RunLog, Startup, as_utc, session, utcnow
 from jobsearch.outreach import people
 from jobsearch.outreach.compose import build_system_prompt, check_messages, compose
 from jobsearch.tailor.facts import load_catalogue
@@ -63,7 +63,20 @@ def drafted_today() -> int:
         return len(s.exec(select(OutreachPlan.id).where(OutreachPlan.created_at >= start)).all())
 
 
-def run_outreach(startup_id: int | None = None, limit: int | None = None) -> dict:
+def auto_candidates(s, planned: set[int]) -> list[Startup]:
+    """Profiled, recently funded startups with no plan yet that are likely to hire AI engineers and fit you."""
+    prefs = preferences()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=prefs["intel"].get("lookback_days", 45))
+    min_relevance = prefs["outreach"].get("auto_min_relevance", 50)
+    rows = s.exec(select(Startup).where(Startup.status == "profiled")).all()
+    return [x for x in rows if x.id not in planned and (x.relevance_score or 0) >= min_relevance
+            and (x.profile or {}).get("ai_engineer_potential", "medium") != "low"
+            and (as_utc(x.latest_announced) or as_utc(x.first_seen_at)) >= cutoff]
+
+
+def run_outreach(startup_id: int | None = None, limit: int | None = None, auto: bool = False) -> dict:
+    """auto=True (the morning run) also drafts for the best profiled startups you haven't shortlisted.
+    Your shortlist always goes first."""
     cfg = preferences()["outreach"]
     stats: Counter = Counter()
     with session() as s:
@@ -73,8 +86,11 @@ def run_outreach(startup_id: int | None = None, limit: int | None = None) -> dic
             planned = set(s.exec(select(OutreachPlan.startup_id)).all())
             shortlisted = s.exec(select(Startup).where(Startup.status == "shortlisted")).all()
             n = limit if limit is not None else max(0, cfg["max_startups_per_day"] - drafted_today())
-            queue = sorted((x for x in shortlisted if x.id not in planned),
-                           key=lambda x: x.relevance_score or 0, reverse=True)[:n]
+            by_fit = lambda x: x.relevance_score or 0
+            queue = sorted((x for x in shortlisted if x.id not in planned), key=by_fit, reverse=True)
+            if auto:
+                queue += sorted(auto_candidates(s, planned), key=by_fit, reverse=True)
+            queue = queue[:n]
         run = RunLog(kind="outreach")
         s.add(run)
         s.commit()
@@ -89,6 +105,7 @@ def run_outreach(startup_id: int | None = None, limit: int | None = None) -> dic
             try:
                 plan = draft_for(st, cat, system_prompt)
                 stats["planned"] += 1
+                stats["planned.auto"] += int(st.status != "shortlisted" and startup_id is None)
                 log.info("Drafted outreach for %s ($%.3f)", st.name, plan.cost_usd)
             except llm.BudgetExceeded as e:
                 log.warning("Stopping outreach: %s", e)

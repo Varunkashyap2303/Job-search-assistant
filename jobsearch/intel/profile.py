@@ -24,13 +24,19 @@ class StartupProfile(BaseModel):
     customers_and_market: str
     business_model: str
     funding_summary: str = Field(description="round, amount, date, lead and other investors, what the money is for")
-    ai_centricity: Literal["core", "significant", "peripheral"]
+    ai_centricity: Literal["core", "significant", "peripheral", "none"]
     ai_implementation: str = Field(description=(
         "detailed analysis in 3-5 short paragraphs: where AI sits in the product, the kinds of models and "
         "techniques involved (LLM apps, agents, RAG, speech, vision, classical ML...), their data advantage, "
         "build vs buy, and the hard technical problems they will need to solve as they scale"))
     ai_evidence: list[str] = Field(description="concrete signals from the sources that support the analysis")
     likely_ai_roles: list[str] = Field(description="AI/engineering roles they are likely to hire for after this round")
+    ai_engineer_potential: Literal["high", "medium", "low"] = Field(
+        description="how likely they are to hire AI engineers (the candidate's target roles) in the next 6-12 months")
+    ai_engineer_potential_reasons: str = Field(description="2-3 sentences: the evidence and reasoning behind the rating")
+    ai_engineer_work: str = Field(description=(
+        "what an AI engineer would most likely build there in the first year, concretely; 'unclear' if the "
+        "sources give no basis"))
     hiring_signals: str = Field(description="open roles and growth signals seen in the sources, or 'none found'")
     people: list[Person] = Field(description="founders and leaders named in the sources only; never guess")
     relevance_score: int = Field(description="0-100 fit as an employer for the candidate")
@@ -49,6 +55,9 @@ startups to approach and how. The research focus is {topic}.
 <instructions>
 You get what we know about one startup: funding news, text from its website and careers pages, and roles on
 its job board. Write a detailed profile.
+- The startup may not be an AI company. Many newly funded startups in other sectors will build {topic} into
+  their product after the raise. Judge ai_engineer_potential honestly from the product, data, roles and what
+  the money is for; a company with little plausible {topic} work is "low".
 - Separate evidence from analysis. Facts (funding, product, people, roles) must come from the sources.
   The ai_implementation section is your expert analysis of how {topic} is or will be built into their
   product; reason from the product and evidence, and say where you are inferring.
