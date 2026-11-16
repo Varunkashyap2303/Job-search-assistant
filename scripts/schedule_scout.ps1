@@ -1,7 +1,6 @@
 # Registers the Windows scheduled tasks. Runs as the current user, only while logged on.
 #   JobSearch-Intel : 06:00 daily (wakes the PC from sleep), funded AU startups likely to hire AI engineers,
-#                     profiles, outreach drafts and the morning brief in data
-eports
+#                     profiles, outreach drafts and the morning brief in data\reports
 #   JobSearch-Scout : every 2 hours 07:00-23:00, fetches/scores jobs and tailors resumes
 # Remove both with:  .\scripts\schedule_scout.ps1 -Remove
 param([switch]$Remove)
