@@ -84,6 +84,26 @@ def test_slugs_and_excerpt():
     assert "Acme AI" in pipeline._excerpt_about(text, "Acme AI")
 
 
+def test_extract_all_splits_overflowing_batches(monkeypatch):
+    from jobsearch import llm
+    from jobsearch.intel import extract
+    calls = []
+
+    def fake(batch):
+        calls.append(len(batch))
+        if len(batch) > 2:
+            raise llm.OutputTruncated("Hit max_tokens")
+        return [event(article=i) for i, _ in batch]
+
+    monkeypatch.setattr(extract, "extract", fake)
+    batch = [(i, art(f"Startup {i} raises $1m")) for i in range(5)]
+    assert [e.article for e in extract.extract_all(batch)] == [0, 1, 2, 3, 4]
+    assert calls == [5, 2, 3, 1, 2]
+    monkeypatch.setattr(extract, "extract", lambda b: (_ for _ in ()).throw(llm.OutputTruncated("x")))
+    with pytest.raises(llm.OutputTruncated):   # a single article that still overflows is reported, not looped
+        extract.extract_all(batch[:1])
+
+
 def test_schemas_compatible():
     for model in (Extraction, StartupProfile):
         assert transform_schema(TypeAdapter(model).json_schema())["additionalProperties"] is False

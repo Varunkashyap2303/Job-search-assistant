@@ -54,6 +54,10 @@ class LLMError(RuntimeError):
     pass
 
 
+class OutputTruncated(LLMError):
+    """The model hit max_tokens before finishing; a smaller request may succeed."""
+
+
 _client: anthropic.Anthropic | None = None
 
 
@@ -181,7 +185,7 @@ def parse(
     if response.stop_reason == "refusal":
         raise LLMError(f"Refused: {response.stop_details}")
     if response.stop_reason == "max_tokens":
-        raise LLMError(f"Hit max_tokens={max_tokens} before finishing structured output")
+        raise OutputTruncated(f"Hit max_tokens={max_tokens} before finishing structured output")
     text = next((b.text for b in response.content if b.type == "text"), "")
     try:
         parsed = output_format.model_validate_json(text)

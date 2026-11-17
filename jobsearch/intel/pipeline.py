@@ -108,7 +108,7 @@ def discover(cfg: dict, stats: Counter) -> None:
     indexed = list(enumerate(candidates))
     for batch in extract.batches(indexed):
         try:
-            events = extract.extract(batch)
+            events = extract.extract_all(batch)
         except llm.BudgetExceeded as e:
             # Unprocessed candidates aren't recorded, so the next run retries them if still in the feeds
             log.warning("Stopping extraction: %s", e)

@@ -8,7 +8,7 @@ from jobsearch import llm
 from jobsearch.config import preferences
 from jobsearch.intel.news import Article
 
-BATCH_CHARS = 30_000   # article text per extraction call
+BATCH_CHARS = 20_000   # article text per extraction call; round-ups can list a dozen companies each
 
 
 class FundingEvent(BaseModel):
@@ -74,7 +74,18 @@ def extract(batch: list[tuple[int, Article]]) -> list[FundingEvent]:
         system=SYSTEM + f"\nai_centricity measures how central {topic} is to the company's product.",
         user="\n\n".join(parts),
         output_format=Extraction,
-        max_tokens=4000,
+        max_tokens=6000,
         effort="low",
     )
     return result.events
+
+
+def extract_all(batch: list[tuple[int, Article]]) -> list[FundingEvent]:
+    """Like extract(), but a batch whose events overflow max_tokens is split in half and retried."""
+    try:
+        return extract(batch)
+    except llm.OutputTruncated:
+        if len(batch) == 1:
+            raise
+        mid = len(batch) // 2
+        return extract_all(batch[:mid]) + extract_all(batch[mid:])
