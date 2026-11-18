@@ -14,7 +14,9 @@ AU_CITIES = ["Melbourne", "Sydney", "Brisbane", "Perth", "Adelaide", "Canberra",
 ENV_KEYS = [("ANTHROPIC_API_KEY", "Anthropic API key (required)"),
             ("ANTHROPIC_WORKSPACE_ID", "Anthropic workspace ID (only for org-level keys)"),
             ("ADZUNA_APP_ID", "Adzuna app ID (free, optional)"), ("ADZUNA_APP_KEY", "Adzuna app key"),
-            ("JOOBLE_API_KEY", "Jooble API key (free, optional)")]
+            ("JOOBLE_API_KEY", "Jooble API key (free, optional)"),
+            ("TELEGRAM_BOT_TOKEN", "Telegram bot token (optional: morning brief on your phone)"),
+            ("TELEGRAM_CHAT_ID", "Telegram chat ID (from `python -m jobsearch telegram setup`)")]
 
 
 def _lines(text: str) -> list[str]:

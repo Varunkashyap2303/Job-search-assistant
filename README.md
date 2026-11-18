@@ -532,6 +532,22 @@ plan settings → Advanced → Sleep → Allow wake timers) and, if the PC was o
 the computer was asleep at a scheduled time, Task Scheduler and launchd run the missed job when it wakes;
 cron skips it.
 
+### Morning brief on Telegram (optional)
+
+After the 06:00 run writes the brief, it can send you a short summary (top startups, AI engineer potential,
+fit, drafts waiting) with the full brief attached as a file. The bot only ever messages you; outreach is
+never sent from here, and a Telegram outage never fails the run.
+
+1. In Telegram, message **@BotFather**, send `/newbot` and follow the prompts. Copy the token it gives you.
+2. Put it in `.env` as `TELEGRAM_BOT_TOKEN=...` (or paste it under **Job search → API keys**).
+3. Open your new bot in Telegram and send it any message.
+4. Run `python -m jobsearch telegram setup`. It prints `TELEGRAM_CHAT_ID=...`; add that line to `.env`.
+5. Run `python -m jobsearch telegram test` for a test message, and `python -m jobsearch telegram send` to
+   send the latest brief now.
+
+Bot chats aren't end-to-end encrypted, so the brief (including the drafted messages and any published
+email addresses) passes through Telegram's servers.
+
 ---
 
 ## Your data and privacy

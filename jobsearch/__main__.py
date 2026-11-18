@@ -60,7 +60,33 @@ def cmd_intel(args) -> None:
         auto = preferences()["outreach"].get("auto_draft", True) and not args.no_outreach
         stats.update({f"outreach.{k}": v for k, v in run_outreach(auto=auto).items()})
         stats["report"] = write_report(stats)
+
+        from jobsearch import notify
+
+        stats["telegram"] = notify.deliver_brief(stats["report"], stats)
     print(json.dumps(stats, indent=2, sort_keys=True))
+
+
+def cmd_telegram(args) -> None:
+    from jobsearch import notify
+
+    if args.action == "setup":
+        chats = notify.recent_chats()
+        if not chats:
+            print("No messages found. Open your bot in Telegram, send it any message, then run this again.")
+        for chat_id, name in chats:
+            print(f"TELEGRAM_CHAT_ID={chat_id}   ({name})")
+    elif args.action == "test":
+        notify.send_text("Job search connected. Your morning startup brief will arrive here after the 06:00 run.")
+        print("Sent a test message.")
+    else:
+        from jobsearch.config import DATA_DIR
+
+        reports = sorted((DATA_DIR / "reports").glob("intel_*.md"))
+        if not reports:
+            print("No brief yet. Run `python -m jobsearch intel` first.")
+            return
+        print(notify.deliver_brief(str(reports[-1])))
 
 
 def cmd_outreach(args) -> None:
@@ -128,6 +154,10 @@ def main() -> None:
     p.add_argument("--startup", type=int, default=None, help="draft for one startup id")
     p.add_argument("--limit", type=int, default=None, help="max startups this run")
     p.set_defaults(func=cmd_outreach)
+
+    p = sub.add_parser("telegram", help="morning brief on Telegram: setup (find your chat id), test, send")
+    p.add_argument("action", choices=["setup", "test", "send"])
+    p.set_defaults(func=cmd_telegram)
 
     p = sub.add_parser("schedule", help="daily runs via Task Scheduler (Windows), launchd (macOS) or cron (Linux)")
     p.add_argument("action", choices=["show", "install", "remove"])

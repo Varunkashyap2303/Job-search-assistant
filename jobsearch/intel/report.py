@@ -2,7 +2,8 @@
 the people to contact and the drafted messages, as one Markdown file in data/reports/. Nothing is sent."""
 
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta, timezone
 
 from sqlmodel import select
 
@@ -128,26 +129,68 @@ def _startup_section(i: int, st: Startup, is_new: bool, plan: tuple | None, note
     return lines
 
 
-def write_report(stats: Counter | dict | None = None) -> str:
-    stats = stats or {}
-    prefs = preferences()
-    days = prefs.get("intel", {}).get("lookback_days", 45)
-    note_days = prefs.get("outreach", {}).get("follow_up_days", 7)
-    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+@dataclass
+class Brief:
+    today: date
+    days: int
+    is_new: set[int]
+    full: list[Startup]        # profiled and not rated low: full sections
+    rest: list[Startup]        # not profiled yet, or rated low: one line each
+    plans: dict[int, tuple[OutreachPlan, list[OutreachDraft]]]
+
+
+def collect() -> Brief:
+    days = preferences().get("intel", {}).get("lookback_days", 45)
     today = datetime.now(local_tz()).date()
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     with session() as s:
         rows = s.exec(select(Startup).where(Startup.status != "dismissed")).all()
     rows = [r for r in rows if (as_utc(r.latest_announced) or as_utc(r.first_seen_at)) >= cutoff]
     is_new = {r.id for r in rows if as_utc(r.first_seen_at).astimezone(local_tz()).date() == today}
-
-    # Full sections: profiled and not rated low. Everything else is a one-line entry at the end.
     full = [r for r in rows if r.profile and _potential(r) != "Low"]
     full.sort(key=lambda r: (r.relevance_score or 0, as_utc(r.latest_announced) or cutoff), reverse=True)
     full_ids = {r.id for r in full}
     rest = [r for r in rows if r.id not in full_ids]
     rest.sort(key=lambda r: as_utc(r.latest_announced) or as_utc(r.first_seen_at), reverse=True)
-    plans = _latest_plans([r.id for r in full])
+    return Brief(today, days, is_new, full, rest, _latest_plans([r.id for r in full]))
+
+
+def _stopped_early(stats: dict) -> bool:
+    return bool(stats.get("budget_stop") or stats.get("outreach.budget_stop"))
+
+
+def summary_text(stats: Counter | dict | None = None, top: int = 5) -> str:
+    """The short version for your phone (plain text, well under Telegram's 4096-character limit)."""
+    stats = stats or {}
+    b = collect()
+    waiting = lambda r: sum(d.status in OPEN_DRAFT for d in b.plans[r.id][1]) if r.id in b.plans else 0
+    lines = [f"Morning startup brief · {b.today.strftime('%a %d %b')}",
+             f"{len(b.is_new)} new today · {len(b.full)} profiled · {len(b.rest)} more", ""]
+    if b.full:
+        lines.append("Top picks")
+        for i, r in enumerate(b.full[:top], 1):
+            lines += [f"{i}. {r.name}{' (new)' if r.id in b.is_new else ''} · {r.hq_city or 'city n/a'} · {_round(r)}",
+                      f"   AI engineer potential: {_potential(r)} · fit {r.relevance_score} · {waiting(r)} draft(s) to review"]
+        lines.append("")
+    likely = [r for r in b.rest if _potential(r) in ("High", "Medium")]
+    if likely:
+        lines.append("Also funded, profile queued")
+        lines += [f"• {r.name} · {_round(r)} · {_potential(r)}" for r in likely[:top]]
+        if len(likely) > top:
+            lines.append(f"…and {len(likely) - top} more")
+        lines.append("")
+    if _stopped_early(stats):
+        lines += ["Stopped early at the budget cap; the rest wait for tomorrow.", ""]
+    lines.append("Full brief with every draft attached. Nothing has been sent.")
+    return "\n".join(lines)
+
+
+def write_report(stats: Counter | dict | None = None) -> str:
+    stats = stats or {}
+    note_days = preferences().get("outreach", {}).get("follow_up_days", 7)
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    b = collect()
+    today, days, is_new, full, rest, plans = b.today, b.days, b.is_new, b.full, b.rest, b.plans
 
     lines = [f"# Morning startup brief: {today}", "",
              f"Australian startups funded in the last {days} days that are likely to hire AI engineers. "
@@ -157,7 +200,7 @@ def write_report(stats: Counter | dict | None = None) -> str:
         lines += [f"This run: {stats.get('articles.new', 0)} new articles, {stats.get('articles.candidates', 0)} "
                   f"funding stories, {stats.get('startups.new', 0)} new startups, {stats.get('profiled', 0)} "
                   f"profiled, {stats.get('outreach.planned', 0)} outreach plans drafted"
-                  + (" (stopped early at the budget cap)" if stats.get("budget_stop") or stats.get("outreach.budget_stop") else "")
+                  + (" (stopped early at the budget cap)" if _stopped_early(stats) else "")
                   + ".", ""]
     lines += [f"{len(is_new)} new today · {len(full)} profiled · {len(rest)} more waiting or less likely to hire", ""]
 
