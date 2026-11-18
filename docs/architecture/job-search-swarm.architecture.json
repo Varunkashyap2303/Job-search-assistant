@@ -42,6 +42,17 @@
           "employer"
         ],
         "note": "Nothing leaves the machine until you approve it and click Submit yourself."
+      },
+      {
+        "id": "telegram-hermes",
+        "label": "Telegram & Hermes",
+        "focus": [
+          "intel",
+          "telegram",
+          "hermes",
+          "anthropic"
+        ],
+        "note": "The brief is pushed to Telegram at 06:00; your replies go to Hermes, which acts only through the job-search MCP tools."
       }
     ]
   },
@@ -166,7 +177,7 @@
       "id": "intel",
       "type": "backend",
       "label": "Intel & outreach",
-      "sublabel": "startups, drafts",
+      "sublabel": "startups, drafts, brief",
       "pos": [
         480,
         370
@@ -218,6 +229,36 @@
         150,
         64
       ]
+    },
+    {
+      "id": "hermes",
+      "type": "backend",
+      "label": "Hermes Agent",
+      "sublabel": "Telegram gateway, Sonnet",
+      "pos": [
+        300,
+        560
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "chat"
+    },
+    {
+      "id": "telegram",
+      "type": "external",
+      "label": "Telegram",
+      "sublabel": "your bot chat",
+      "pos": [
+        40,
+        560
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "your phone"
     }
   ],
   "boundaries": [
@@ -233,7 +274,8 @@
         "config",
         "intel",
         "gateway",
-        "sqlite"
+        "sqlite",
+        "hermes"
       ]
     },
     {
@@ -250,6 +292,13 @@
       "label": "Local secrets, git-ignored",
       "wraps": [
         "config"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Job-search tools only",
+      "wraps": [
+        "hermes"
       ]
     }
   ],
@@ -355,6 +404,44 @@
       "fromSide": "top",
       "toSide": "bottom",
       "labelDy": -18
+    },
+    {
+      "id": "morning-brief",
+      "from": "intel",
+      "to": "telegram",
+      "label": "06:00 brief",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "labelAt": [
+        172,
+        648
+      ]
+    },
+    {
+      "id": "chat",
+      "from": "telegram",
+      "to": "hermes",
+      "label": "your messages",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "mcp-tools",
+      "from": "hermes",
+      "to": "intel",
+      "label": "MCP tools",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "labelSegment": 0
+    },
+    {
+      "id": "hermes-claude",
+      "from": "hermes",
+      "to": "anthropic",
+      "label": "own key",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
     }
   ],
   "cards": [
@@ -371,9 +458,9 @@
       "dot": "violet",
       "title": "Claude and state",
       "items": [
-        "llm.parse() is the only path to Anthropic",
+        "llm.parse() is the job search's only path to Anthropic",
         "Capped per agent, per day ($1.50) and per month",
-        "Agents hand off only through SQLite"
+        "Hermes uses its own key, outside that budget guard"
       ]
     },
     {
@@ -381,7 +468,7 @@
       "title": "Trust boundaries",
       "items": [
         "Job ads, news and sites are data, never instructions",
-        "Profile and keys stay local; prompts go only to Anthropic",
+        "Hermes on Telegram: job-search tools only, no shell or files",
         "Nothing is sent or submitted without your click"
       ]
     }
