@@ -548,6 +548,38 @@ never sent from here, and a Telegram outage never fails the run.
 Bot chats aren't end-to-end encrypted, so the brief (including the drafted messages and any published
 email addresses) passes through Telegram's servers.
 
+### Talk to it from Hermes, Claude Desktop or Claude Code (MCP)
+
+`scripts/jobsearch_mcp.py` is an MCP server (stdio, no extra packages) that gives an agent the same
+abilities as the dashboard:
+
+| Tool | Does | Cost |
+|-|-|-|
+| `get_brief` | Today's brief: summary, or the full Markdown with every draft | free |
+| `list_startups`, `get_startup` | Tracked startups with AI engineer potential and fit; one startup's full profile | free |
+| `get_drafts`, `follow_ups_due` | Drafted messages to review; follow-ups now due | free |
+| `budget_status` | Spend today and this month against your caps | free |
+| `set_startup_status` | Shortlist, dismiss or un-dismiss a startup | free |
+| `update_draft` | Record that you sent, got a reply, skipped or followed up | free |
+| `profile_startup` | Opus profile of one startup now | ~$0.10 |
+| `draft_outreach` | Find people and draft messages for one startup now | ~$0.11 |
+
+There is no tool that sends anything. Startups can be named loosely ("qctrl", "cutable"). Paid tools run
+like the dashboard buttons: they skip the per-agent shares, but your daily and monthly caps still apply.
+
+Point your client at the launcher with the project's own Python, for example:
+
+```bash
+# Claude Code (Windows)
+claude mcp add jobsearch -- D:\path\to\Job_search\.venv\Scripts\python.exe D:\path\to\Job_search\scripts\jobsearch_mcp.py
+```
+
+For Hermes Agent in WSL, add a stdio MCP server (`hermes mcp`, or the MCP section of its config) whose
+command is `/mnt/d/path/to/Job_search/.venv/Scripts/python.exe` with the argument
+`D:\path\to\Job_search\scripts\jobsearch_mcp.py`. WSL runs the Windows Python directly, so the database
+and `.env` stay where they are. An agent's own model calls (deciding which tool to use) are billed by that
+agent, not counted by this project's budget.
+
 ---
 
 ## Your data and privacy

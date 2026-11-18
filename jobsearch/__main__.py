@@ -96,6 +96,12 @@ def cmd_outreach(args) -> None:
         print(json.dumps(run_outreach(startup_id=args.startup, limit=args.limit), indent=2, sort_keys=True))
 
 
+def cmd_mcp(args) -> None:
+    from jobsearch.mcp_server import serve
+
+    serve()
+
+
 def cmd_schedule(args) -> None:
     from jobsearch import schedule
 
@@ -158,6 +164,8 @@ def main() -> None:
     p = sub.add_parser("telegram", help="morning brief on Telegram: setup (find your chat id), test, send")
     p.add_argument("action", choices=["setup", "test", "send"])
     p.set_defaults(func=cmd_telegram)
+
+    sub.add_parser("mcp", help="MCP server over stdio for Hermes Agent, Claude Desktop or Claude Code").set_defaults(func=cmd_mcp)
 
     p = sub.add_parser("schedule", help="daily runs via Task Scheduler (Windows), launchd (macOS) or cron (Linux)")
     p.add_argument("action", choices=["show", "install", "remove"])
