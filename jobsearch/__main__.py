@@ -63,7 +63,7 @@ def cmd_intel(args) -> None:
 
         from jobsearch import notify
 
-        stats["telegram"] = notify.deliver_brief(stats["report"], stats)
+        stats["telegram"] = notify.morning_update(stats["report"])
     print(json.dumps(stats, indent=2, sort_keys=True))
 
 
@@ -79,6 +79,16 @@ def cmd_telegram(args) -> None:
     elif args.action == "test":
         notify.send_text("Job search connected. Your morning startup brief will arrive here after the 06:00 run.")
         print("Sent a test message.")
+    elif args.action == "preview":
+        from jobsearch import digest
+
+        message = digest.morning_message()
+        print(f"[{message[0]}]\n{message[1]}" if message else "Nothing new or pending: no message would be sent.")
+    elif args.action == "baseline":
+        from jobsearch import digest
+
+        startups, drafts = digest.mark_all_seen()
+        print(f"Marked {startups} startup(s) and {drafts} draft(s) as already seen.")
     else:
         from jobsearch.config import DATA_DIR
 
@@ -161,8 +171,10 @@ def main() -> None:
     p.add_argument("--limit", type=int, default=None, help="max startups this run")
     p.set_defaults(func=cmd_outreach)
 
-    p = sub.add_parser("telegram", help="morning brief on Telegram: setup (find your chat id), test, send")
-    p.add_argument("action", choices=["setup", "test", "send"])
+    p = sub.add_parser("telegram", help="morning message on Telegram: setup (find your chat id), test, "
+                                        "preview (tomorrow's message, not sent), send (full brief now), "
+                                        "baseline (mark everything current as seen)")
+    p.add_argument("action", choices=["setup", "test", "preview", "send", "baseline"])
     p.set_defaults(func=cmd_telegram)
 
     sub.add_parser("mcp", help="MCP server over stdio for Hermes Agent, Claude Desktop or Claude Code").set_defaults(func=cmd_mcp)

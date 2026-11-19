@@ -160,6 +160,24 @@ def follow_ups_due() -> list[dict]:
              "follow_up": d.messages.get("follow_up", "")} for d in due]
 
 
+@tool("progress", "What the user has done so far and what's waiting: follow-ups due, drafts not yet sent "
+                  "(grouped by startup, with their #draft numbers) and counts of sent, replied and skipped. The "
+                  "morning check-in on Telegram shows the same thing.")
+def progress() -> dict:
+    from jobsearch import digest
+
+    p = digest.progress()
+    names = p["names"]
+    return {
+        "follow_ups_due": [{**_draft_dict(d, names.get(d.startup_id, "?"), with_messages=False),
+                            "follow_up": d.messages.get("follow_up", "")} for d in p["follow_ups_due"]],
+        "drafts_not_sent": [{"draft_id": d.id, "startup": names.get(d.startup_id, "?"),
+                             "name": d.name or f"(find on LinkedIn: {d.role})", "role": d.role, "status": d.status}
+                            for d in p["waiting"]],
+        "totals": {k: p[k] for k in ("sent", "replied", "awaiting_reply", "skipped", "follow_ups_sent")},
+    }
+
+
 @tool("budget_status", "AI spend today and this month against your caps, and each agent's share of the daily cap.")
 def budget_status() -> dict:
     b = preferences().get("budget", {})
@@ -188,8 +206,9 @@ def set_startup_status(startup: str, status: str) -> str:
 
 
 @tool("update_draft", "Record what you did with a draft after sending it yourself: sent (starts the follow-up "
-                      "timer), replied, skipped, approved, or follow_up_sent. This never sends anything.",
-      {"draft_id": {"type": "integer"},
+                      "timer), replied, skipped, approved, or follow_up_sent. This never sends anything. "
+                      "\"sent #4\" in a reply to the morning message means draft_id 4.",
+      {"draft_id": {"type": "integer", "description": "the #number shown in the morning brief or check-in"},
        "status": {"type": "string", "enum": ["approved", "sent", "replied", "skipped", "follow_up_sent"]}},
       ["draft_id", "status"])
 def update_draft(draft_id: int, status: str) -> str:
@@ -279,7 +298,11 @@ def handle(msg: dict) -> dict | None:
         result = {"protocolVersion": params.get("protocolVersion", DEFAULT_PROTOCOL),
                   "capabilities": {"tools": {"listChanged": False}}, "serverInfo": SERVER_INFO,
                   "instructions": "Job search tools. Nothing is ever sent from here: show drafts to the user and "
-                                  "let them send. profile_startup and draft_outreach cost money; confirm first."}
+                                  "let them send. profile_startup and draft_outreach cost money; confirm first. "
+                                  "The user gets a morning brief or check-in that numbers drafts as #id; when they "
+                                  "reply \"sent #4\", \"replied #1\" or \"skip Morgan\", record it with update_draft "
+                                  "(for a startup name, update each of its open drafts from get_drafts) and confirm "
+                                  "what you recorded. Use progress to answer \"what have I done so far?\"."}
     elif method == "tools/list":
         result = {"tools": [t["spec"] for t in TOOLS.values()]}
     elif method == "tools/call":

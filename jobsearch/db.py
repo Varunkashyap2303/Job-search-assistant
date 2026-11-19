@@ -138,6 +138,16 @@ class OutreachDraft(SQLModel, table=True):
     follow_up_sent: bool = False
 
 
+class TelegramMessage(SQLModel, table=True):
+    """What each morning Telegram message showed, so the next one covers only what's new."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    sent_at: datetime = Field(default_factory=utcnow, index=True)
+    kind: str = ""                              # brief | checkin | baseline
+    startup_ids: list = Field(default_factory=list, sa_column=Column(JSON))
+    draft_ids: list = Field(default_factory=list, sa_column=Column(JSON))
+    text: str = ""
+
+
 class Application(SQLModel, table=True):
     """One application per approved resume. The agent prepares and pre-fills; you always click Submit."""
     id: Optional[int] = Field(default=None, primary_key=True)

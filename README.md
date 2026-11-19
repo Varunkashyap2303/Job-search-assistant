@@ -534,9 +534,21 @@ cron skips it.
 
 ### Morning brief on Telegram (optional)
 
-After the 06:00 run writes the brief, it can send you a short summary (top startups, AI engineer potential,
-fit, drafts waiting) with the full brief attached as a file. The bot only ever messages you; outreach is
-never sent from here, and a Telegram outage never fails the run.
+After the 06:00 run writes the brief, it can message you on Telegram, without repeating itself:
+
+- **Something new** (a newly profiled startup or new outreach drafts): a brief of only the new items, each
+  draft numbered (`#12`), plus newly found startups whose profile is still queued and one line on what's
+  still waiting. The full brief is attached as a file.
+- **Nothing new:** a check-in listing follow-ups that are due, every draft you haven't sent yet, and your
+  totals so far (sent, replied, awaiting reply, skipped).
+- **Nothing new and nothing waiting:** no message.
+
+Reply to it ("sent #12", "replied #3", "skip Morgan") and Hermes, if you've connected it (see below),
+records it. Each message records what it showed, and only after Telegram accepts it. The bot only ever
+messages you; outreach is never sent from here, and a Telegram outage never fails the run.
+
+`python -m jobsearch telegram preview` prints tomorrow's message without sending it;
+`telegram baseline` marks everything current as already seen.
 
 1. In Telegram, message **@BotFather**, send `/newbot` and follow the prompts. Copy the token it gives you.
 2. Put it in `.env` as `TELEGRAM_BOT_TOKEN=...` (or paste it under **Job search → API keys**).
@@ -558,6 +570,7 @@ abilities as the dashboard:
 | `get_brief` | Today's brief: summary, or the full Markdown with every draft | free |
 | `list_startups`, `get_startup` | Tracked startups with AI engineer potential and fit; one startup's full profile | free |
 | `get_drafts`, `follow_ups_due` | Drafted messages to review; follow-ups now due | free |
+| `progress` | What you've done so far and what's waiting (the morning check-in's contents) | free |
 | `budget_status` | Spend today and this month against your caps | free |
 | `set_startup_status` | Shortlist, dismiss or un-dismiss a startup | free |
 | `update_draft` | Record that you sent, got a reply, skipped or followed up | free |

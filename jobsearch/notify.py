@@ -1,4 +1,5 @@
-"""Sends the morning brief to your own Telegram chat through a bot you create with @BotFather.
+"""Sends the morning message to your own Telegram chat through a bot you create with @BotFather: only
+what's new, else a check-in on drafts and follow-ups, else nothing (see digest.py).
 It only ever messages TELEGRAM_CHAT_ID (you); outreach is never sent from here.
 
 Setup: put TELEGRAM_BOT_TOKEN in .env, send your bot any message, run `python -m jobsearch telegram setup`
@@ -63,6 +64,28 @@ def recent_chats() -> list[tuple[int, str]]:
     return list(chats.items())
 
 
+def morning_update(report_path: str) -> str:
+    """The scheduled morning message: only what's new, else a check-in, else nothing (see digest.py).
+    What was shown is recorded only after Telegram accepts it. Never raises."""
+    if not configured():
+        return "not configured"
+    from jobsearch import digest
+
+    message = digest.morning_message()
+    if message is None:
+        return "nothing new or pending: no message"
+    kind, text, startup_ids, draft_ids = message
+    try:
+        send_text(text)
+        if kind == "brief":
+            send_file(report_path, "Full brief: every startup profile and drafted message")
+    except (NotifyError, OSError) as e:
+        log.warning("Telegram delivery failed: %s", e)
+        return f"failed: {e}"
+    digest.record(kind, text, startup_ids, draft_ids)
+    return f"sent {kind}"
+
+
 def deliver_brief(report_path: str, stats: dict | None = None) -> str:
     """Summary message plus the full brief as a file. Returns a status for the run log; never raises,
     so a Telegram outage can't fail the morning run."""
@@ -70,10 +93,13 @@ def deliver_brief(report_path: str, stats: dict | None = None) -> str:
         return "not configured"
     from jobsearch.intel.report import summary_text
 
+    from jobsearch import digest
+
     try:
         send_text(summary_text(stats))
         send_file(report_path, "Full brief: every startup profile and drafted message")
     except (NotifyError, OSError) as e:
         log.warning("Telegram delivery failed: %s", e)
         return f"failed: {e}"
+    digest.mark_all_seen()      # you've now seen everything, so tomorrow only covers what's new
     return "sent"
